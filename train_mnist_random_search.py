@@ -15,8 +15,18 @@ import glob
 from randomSearch import *
 from mnist_utils import *
 
+import psutil
+
+# Global Variable 
 MASTER_RANK = 0
-device = torch.device("cpu")
+device = torch.device("cpu") 
+
+# Setting
+num_search_total = 100
+lr_low, lr_high = 0, 0.1
+batch_size_list = [16, 32, 64, 128]
+
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -85,20 +95,23 @@ def train_mnist(lr, batch_size, pbar_train=None, pbar_test=None):
     net = Net()
     net.to(device)
 
+    # process = psutil.Process(os.getpid())
+    # print("\nPid:", process, "memory:", process.memory_info().rss,"\n")  # in bytes 
+
     # Data Loader
     train_loader = get_train_loader(batch_size)
     val_loader = get_val_loader(batch_size)
 
     # Hyper-Parameters
     num_epochs = 1
-    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=0.5)
+    optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(1, num_epochs+1):
         if pbar_train is not None:
-            pbar_train.set_description("[lr={:.2f}, bs={}] Train ({}/{})".format(
+            pbar_train.set_description("[lr={:.4f}, bs={}] Train ({}/{})".format(
                 lr, batch_size, epoch, num_epochs))
-            pbar_test.set_description( "[lr={:.2f}, bs={}] Test  ({}/{})".format(
+            pbar_test.set_description( "[lr={:.4f}, bs={}] Test  ({}/{})".format(
                 lr, batch_size, epoch, num_epochs))
         train_acc = train(net, train_loader, optimizer, criterion, pbar_train)
         test_acc = test(net, val_loader, criterion, pbar_test)
@@ -112,10 +125,9 @@ if __name__ == "__main__":
     comm, world_size, my_rank, node_name = initMPI()
 
     # === Init Search Grid === #
-    var_lr = continuousRandomVariable(0, 1)
-    var_batch_size = discreteRandomVariable([16, 32, 64, 128])
-    randomSearch = RandomSearch([var_lr, var_batch_size])
-    num_search_total = 100
+    var_lr = continuousRandomVariable(lr_low, lr_high )
+    var_batch_size = discreteRandomVariable(batch_size_list)
+    randomSearch = RandomSearch([var_lr, var_batch_size], ["learning rate", "batch size"])
 
     # === Init Progress Bar === #
     if my_rank == MASTER_RANK:
@@ -158,18 +170,19 @@ if __name__ == "__main__":
         pbar_train.close()
         pbar_test.close()
 
-        # Read Grid Search Result
+        # Read & Print Grid Search Result
         records = read_records()
         hyperparams = []
-        print("=== Grid Search Result ===")
+        print("\n=== Random Search Result ===\n")
         print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
         print("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc"))
         print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
         for (lr, batch_size), acc in records.items():
             print("{:^15} | {:^10} | {:^10} |".format("%.4f"%float(lr), batch_size, "%.4f"%float(acc)))
-            hyperparams.append((float(lr), int(batch_size)))
+            hyperparams.append((float(lr), int(batch_size), float(acc)))
         print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
         vis_random_search(hyperparams)
+
         # Print Execution Time
         end = time.time()
         print("Execution Time:", end-start)
