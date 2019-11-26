@@ -56,49 +56,6 @@ class RandomSearch:
                 s += "Var_%d : "%(i+1) + str(rv)
         return s
 
-def vis_random_search(hyperparams):
-    
-    if len(hyperparams[0]) == 2:
-        xs = [h[0] for h in hyperparams]
-        ys = [h[1] for h in hyperparams]
-        plt.scatter(xs, ys)
-        if type(xs[0]) == type(0.0):
-            plt.xticks([min(xs), max(xs)])
-        elif type(xs[0]) == type(0):
-            plt.xticks(list(set(xs)))
-        if type(ys[0]) == type(0.0):
-            plt.yticks([min(ys), max(ys)])
-        elif type(ys[0]) == type(0):
-            plt.yticks(list(set(ys)))
-        plt.show()
-
-    elif len(hyperparams[0]) == 3:
-        xs = [h[0] for h in hyperparams]
-        ys = [h[1] for h in hyperparams]
-        zs = [h[2] for h in hyperparams]
-
-        plt.scatter(xs, ys, c=zs, cmap='cool')
-        if type(xs[0]) == type(0.0):
-            plt.xticks([min(xs), max(xs)])
-        elif type(xs[0]) == type(0):
-            plt.xticks(list(set(xs)))
-        if type(ys[0]) == type(0.0):
-            plt.yticks([min(ys), max(ys)])
-        elif type(ys[0]) == type(0):
-            plt.yticks(list(set(ys)))
-        # plt.clim(0, 100)
-        plt.colorbar()
-        plt.show()
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        for x, y, z in zip(xs, ys, zs):
-            z_ = (z - min(zs)) / max(zs)
-            cmap = plt.cm.get_cmap('cool')
-            ax.scatter([x], [y], [z], c=[cmap(z_)])
-            ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
-        plt.show()
-
 
 def test_random():
     var_lr = continuousRandomVariable(0, 1)
@@ -106,11 +63,13 @@ def test_random():
     randomSearch = RandomSearch([var_lr, var_batch_size], ["learning_rate", "batch_size"])
     print(randomSearch)
     hyperparams = []
+    results = []
     for i in range(50):
         lr, batch_size = randomSearch.get()
         acc = random.uniform(0,100)
-        hyperparams.append((lr, batch_size, acc))
-    vis_random_search(hyperparams)
+        hyperparams.append((lr, batch_size))
+        results.append(acc)
+    vis_search(hyperparams, results)
 
 if __name__ == "__main__":
     test_random()

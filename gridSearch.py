@@ -22,11 +22,12 @@ class Grid:
         i, j = int(idx / w), int(idx % w)
         return self.params_grid[i][j]
 
-    def read_records(self):
-        for i in range(len(self.list_1)):
-            for j in range(len(self.list_2)):
-                lr, batch_size = self.params_grid[i][j]
-                self.result_grid[i][j] = "{0:.2f}".format(read_record(lr, batch_size))
+    def read_records(self, resultDict):
+        for key, value in resultDict.items():
+            lr, batch_size = key
+            i = self.list_1.index(lr)
+            j = self.list_2.index(batch_size)
+            self.result_grid[i][j] = "{0:.2f}".format(value)
 
     def __str__(self):
         s = "\n"
@@ -70,8 +71,14 @@ def test_grid():
     lr_list = [(i/10) for i in range(1, 10+1)]
     batch_size_list = [16, 32, 64, 128, 256]
     grid = Grid(lr_list, batch_size_list)
+    hyperparams = []
+    results = []
+    for i, lr in enumerate(lr_list):
+        for j, batch_size in enumerate(batch_size_list):
+            hyperparams.append((lr, batch_size))
+            results.append(lr)
     print(grid)
-    vis_grid_search(grid)
+    vis_search(hyperparams, results)
 
 if __name__ == "__main__":
     test_grid()
