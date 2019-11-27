@@ -8,29 +8,28 @@ from torch.autograd import Variable
 from mpi4py import MPI
 import os 
 import glob
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
-DEBUG = True 
+DEBUG = False
 
 # === Training CNN === #
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv1 = nn.Conv2d(1, 4, kernel_size=5)
+        self.conv2 = nn.Conv2d(4, 8, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
+        self.fc = nn.Linear(8*4*4, 10)
  
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
+        x = x.view(-1, 8*4*4)
         x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
+        x = F.relu(self.fc(x))
         return x
  
 def train(model, train_loader, optimizer, criterion, device, pbar_train=None):     
@@ -40,7 +39,7 @@ def train(model, train_loader, optimizer, criterion, device, pbar_train=None):
     if pbar_train is not None:
         pbar_train.reset(total=len(train_loader))
     for batch_idx, (inputs, labels) in enumerate(train_loader):
-        if DEBUG and batch_idx > 10:
+        if DEBUG and batch_idx > 3:
             break
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
@@ -66,7 +65,7 @@ def test(model, test_loader, criterion, device, pbar_test=None):
         pbar_test.reset(total=len(test_loader))
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
-            if DEBUG and batch_idx > 10:
+            if DEBUG and batch_idx > 3:
                 break
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
@@ -95,7 +94,7 @@ def train_mnist(lr, batch_size, device, pbar_train=None, pbar_test=None):
 
     # Hyper-Parameters
     num_epochs = 1
-    optimizer = optim.Adam(net.parameters(), lr=lr)
+    optimizer = optim.SGD(net.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(1, num_epochs+1):
@@ -168,8 +167,24 @@ def initMPI():
     my_rank = comm.Get_rank()
     node_name = MPI.Get_processor_name()
     print("Process ({1}/{2}) : {0} ".format(node_name, my_rank+1, world_size))
-    return comm, world_size, my_rank, node_name
+    return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
 
+class MPIWorld:
+    def __init__(self, comm, world_size, my_rank, MASTER_RANK=0, node_name=""):
+        self.comm = comm
+        self.world_size = world_size
+        self.my_rank = my_rank
+        self.MASTER_RANK = MASTER_RANK
+        self.node_name = node_name
+        
+    def isMaster(self):
+        return self.my_rank == self.MASTER_RANK
+
+def initPbars(mpiWorld):
+    if mpiWorld.isMaster():
+        return {"search":tqdm(), "train":tqdm(), "test":tqdm()}
+    else:
+        return {"search":None, "train":None, "test":None}
 
 def syncData(dataDict, comm, world_size, my_rank, MASTER_RANK, blocking=False):
     # Non-Blocking

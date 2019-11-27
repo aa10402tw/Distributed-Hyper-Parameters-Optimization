@@ -79,7 +79,7 @@ if __name__ == "__main__":
             pbar_train.close()
             pbar_test.close()
 
-        # Read Grid Search Result
+        # Display Grid Search Result
         grid.read_records(resultDict)
         print("=== Grid Search Result ===")
         print(grid)
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         for i, lr in enumerate(lr_list):
             for j, batch_size in enumerate(batch_size_list):
                 hyperparams.append((lr, batch_size))
-                results.append(lr)
+                results.append(resultDict[(lr, batch_size)])
         vis_search(hyperparams, results)
 
         # Print Execution Time

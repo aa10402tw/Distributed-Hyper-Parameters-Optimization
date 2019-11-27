@@ -37,8 +37,9 @@ if __name__ == "__main__":
     lr_low = float(args.lr_low)
     lr_high = float(args.lr_high)
     batch_size_list = [16, 32, 64, 128, 256]
-    
+
     # === Init MPI World === #
+    mpiWorld = initMPI()
     comm, world_size, my_rank, node_name = initMPI()
 
     # === Init Search Space === #
@@ -69,6 +70,7 @@ if __name__ == "__main__":
     end_idx = (my_rank+1) * (num_search_total/world_size) if my_rank != world_size-1 else num_search_total
     idxes = [i for i in range(int(start_idx), int(end_idx))]
     resultDict = {}
+
     # === Start Search === #
     for idx in idxes:
 
@@ -85,9 +87,11 @@ if __name__ == "__main__":
         # Update Grid Search Progress bar
         if my_rank == MASTER_RANK:
             pbar_search.update(len(resultDict)-pbar_search.n)
+
     resultDict = syncData(resultDict, comm, world_size, my_rank, MASTER_RANK, blocking=True)
     if my_rank == MASTER_RANK:
         pbar_search.update(len(resultDict)-pbar_search.n)
+
     comm.Barrier()
     if my_rank == MASTER_RANK:
         # Close Progress Bar 
@@ -97,7 +101,6 @@ if __name__ == "__main__":
             pbar_test.close()
 
         # Read & Print Grid Search Result
-        # records = read_records()
         records = resultDict
         hyperparams = []
         results = []
@@ -110,7 +113,7 @@ if __name__ == "__main__":
             hyperparams.append((float(lr), int(batch_size)))
             results.append(float(acc))
         print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
-        vis_search(hyperparams,results)
+        vis_search(hyperparams, results)
 
         # Print Execution Time
         end = time.time()
