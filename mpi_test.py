@@ -1,3 +1,4 @@
+import mpi4py
 from mpi4py import MPI
 import time
 import random
@@ -26,5 +27,6 @@ def initMPI():
     return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
 
 
-
+print(mpi4py.get_config())
 mpiWorld = initMPI()
+
