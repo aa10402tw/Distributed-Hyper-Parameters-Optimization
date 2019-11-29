@@ -26,7 +26,7 @@ def initMPI():
     print("Process ({1}/{2}) : {0} ".format(node_name, my_rank+1, world_size))
     return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
 
-
+#print(help(mpi4py))
 print(mpi4py.get_config())
 mpiWorld = initMPI()
 
