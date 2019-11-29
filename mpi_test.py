@@ -26,5 +26,5 @@ def initMPI():
     return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
 
 
-if __name__ == "__main__":
-	mpiWorld = initMPI()
+
+mpiWorld = initMPI()
