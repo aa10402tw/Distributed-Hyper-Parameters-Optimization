@@ -6,22 +6,25 @@ from mnist_utils import *
 
 MASTER_RANK = 0
 
+class MPIWorld:
+    def __init__(self, comm, world_size, my_rank, MASTER_RANK=0, node_name=""):
+        self.comm = comm
+        self.world_size = world_size
+        self.my_rank = my_rank
+        self.MASTER_RANK = MASTER_RANK
+        self.node_name = node_name
+        
+    def isMaster(self):
+        return self.my_rank == self.MASTER_RANK
+
+def initMPI():
+    comm = MPI.COMM_WORLD
+    world_size = comm.Get_size()
+    my_rank = comm.Get_rank()
+    node_name = MPI.Get_processor_name()
+    print("Process ({1}/{2}) : {0} ".format(node_name, my_rank+1, world_size))
+    return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
+
+
 if __name__ == "__main__":
-	comm, world_size, my_rank, node_name = initMPI()
-
-	idxs = [i for i in range(my_rank*10,  my_rank*10+10)]
-	dataDict = {}
-	comm.barrier()
-	if my_rank == MASTER_RANK:
-		pbar = tqdm(total = 10*world_size)
-
-	for idx in idxs:
-		dataDict[idx] = "OUO"
-		time.sleep(random.uniform(0,1))
-		syncData(dataDict, comm, world_size, my_rank, MASTER_RANK, blocking=False)
-		if my_rank == MASTER_RANK:
-			pbar.update(len(dataDict) - pbar.n)
-	syncData(dataDict, comm, world_size, my_rank, MASTER_RANK, blocking=True)
-	if my_rank == MASTER_RANK:
-		pbar.update(len(dataDict) - pbar.n)
-	comm.barrier()
+	mpiWorld = initMPI()
