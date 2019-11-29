@@ -4,32 +4,39 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
+import random
 
-from mpi4py import MPI
+# from mpi4py import MPI
 import os 
 import glob
-from tqdm import tqdm
+#from tqdm import tqdm
+from tqdm import tqdm_notebook as tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 DEBUG = False
+bs_default = 64
+mmt_default = 0.0
+dr_default = 0.0
+lr_default = 0.1
+num_epochs = 1
 
 # === Training CNN === #
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout_rate=0.5):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 4, kernel_size=5)
-        self.conv2 = nn.Conv2d(4, 8, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc = nn.Linear(8*4*4, 10)
+        self.conv1 = nn.Conv2d(1, 2, kernel_size=5)
+        self.conv2 = nn.Conv2d(2, 4, kernel_size=5)
+        self.dropout = nn.Dropout(p=dropout_rate)
+        self.fc = nn.Linear(4*4*4, 10)
  
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 8*4*4)
-        x = F.dropout(x, training=self.training)
-        x = F.relu(self.fc(x))
+        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = x.view(-1, 4*4*4)
+        x = self.dropout(x)
+        x = self.fc(x)
         return x
  
 def train(model, train_loader, optimizer, criterion, device, pbar_train=None):     
@@ -80,31 +87,45 @@ def test(model, test_loader, criterion, device, pbar_test=None):
     return 100.* (correct/total)
 
 
-def train_mnist(lr, batch_size, device, pbar_train=None, pbar_test=None):
-    # Init Network
-    net = Net()
+def train_mnist(lr=lr_default, dr=dr_default, mmt=mmt_default, bs=bs_default, device=None, pbars=None):
+
+    if pbars is not None:
+        pbar_train = pbars['train']
+        pbar_test = pbars['test']
+    else:
+        pbar_train = None
+        pbar_test = None
+
+    # Reproducibitity
+    torch.manual_seed(0)
+    torch.cuda.manual_seed_all(0)
+    # np.random.seed(0)
+    # random.seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+     # Init Network
+    net = Net(dropout_rate=dr)
+    #net.load_state_dict(torch.load("MnistNet.pth"))
     net.to(device)
 
-    # process = psutil.Process(os.getpid())
-    # print("\nPid:", process, "memory:", process.memory_info().rss,"\n")  # in bytes 
-
     # Data Loader
-    train_loader = get_train_loader(batch_size)
-    val_loader = get_val_loader(batch_size)
+    train_loader = get_train_loader(bs)
+    val_loader = get_val_loader(bs)
 
     # Hyper-Parameters
-    num_epochs = 1
-    optimizer = optim.SGD(net.parameters(), lr=lr)
+    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=mmt)
+    # optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(1, num_epochs+1):
         if pbar_train is not None:
-            pbar_train.set_description("[lr={:.4f}, bs={}] Train ({}/{})".format(
-                lr, batch_size, epoch, num_epochs))
+            pbar_train.set_description("[lr={:.4f}, dr={:.4f}] Train ({}/{})".format(
+                lr, dr, epoch, num_epochs))
         train_acc = train(net, train_loader, optimizer, criterion, device, pbar_train)
         if pbar_test is not None:
-            pbar_test.set_description( "[lr={:.4f}, bs={}] Test  ({}/{})".format(
-                lr, batch_size, epoch, num_epochs))
+            pbar_test.set_description( "[lr={:.4f}, dr={:.4f}] Test  ({}/{})".format(
+                lr, dr, epoch, num_epochs))
         test_acc = test(net, val_loader, criterion, device, pbar_test)
 
     return test_acc
@@ -116,7 +137,7 @@ def get_train_loader(batch_size):
                transform=transforms.Compose([
                    transforms.ToTensor(),
                    transforms.Normalize((0.1307,), (0.3081,))
-               ])), batch_size=batch_size, shuffle=True)
+               ])), batch_size=batch_size, shuffle=False)
     return train_loader
 
 def get_val_loader(batch_size):
