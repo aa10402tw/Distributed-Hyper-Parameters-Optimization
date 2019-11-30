@@ -194,7 +194,6 @@ def initMPI():
     world_size = comm.Get_size()
     my_rank = comm.Get_rank()
     node_name = MPI.Get_processor_name()
-    print("Process ({1}/{2}) : {0} ".format(node_name, my_rank+1, world_size))
     return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
 
 class MPIWorld:
@@ -204,12 +203,15 @@ class MPIWorld:
         self.my_rank = my_rank
         self.MASTER_RANK = MASTER_RANK
         self.node_name = node_name
+        self.log = "Process ({1}/{2}) : {0} ".format(node_name, my_rank+1, world_size)
         
     def isMaster(self):
         return self.my_rank == self.MASTER_RANK
 
 def initPbars(mpiWorld, remote=False):
+
     if mpiWorld.isMaster():
+        print("=== [Progress Bars] ===")
         if remote:
             return {"search":tqdm(), "train":None, "test":None}
         else:

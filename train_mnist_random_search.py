@@ -35,7 +35,12 @@ if __name__ == "__main__":
     # === Init MPI World === #
     mpiWorld = initMPI()
     mpiWorld.comm.Barrier()
-    
+    logs = mpiWorld.comm.gather(mpiWorld.log, root=mpiWorld.MASTER_RANK)
+    if mpiWorld.isMaster():
+        print("\n=== MPI World ===")
+        for log in logs:
+            print(log)
+
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
@@ -44,7 +49,7 @@ if __name__ == "__main__":
     args.DEBUG = str2bool(args.DEBUG)
 
     # === Init Search Space === #
-    num_search_global = 100
+    num_search_global = 100 
     lr = CRV(low=0.0, high=1.0, name="lr")
     dr = CRV(low=0.0, high=1.0, name="dr")
     hparams = HyperParams([lr, dr])
@@ -54,7 +59,8 @@ if __name__ == "__main__":
 
     # === Init Progress Bar === #
     if mpiWorld.isMaster():
-        print("\nArgs:{}\n".format(args))
+        print("\n=== Args ===")
+        print("Args:{}\n".format(args))
         print(randomSearch)
     pbars = initPbars(mpiWorld, args.remote)
     if mpiWorld.isMaster():
