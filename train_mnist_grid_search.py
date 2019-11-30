@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser.add_argument("-DEBUG",  default=False)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
-    print(args)
+    
 
     # === Init Search Grid === #
     lr = DRV(choices=[i/10 for i in range(1, 10+1)], name="lr")
@@ -60,6 +60,7 @@ if __name__ == "__main__":
 
     # === Init Progress Bar === #
     if mpiWorld.isMaster():
+        print("\nArgs:{}\n".format(args))
         print("=== Grid Search ===")
         print(gridSearch)
         pbars = {
@@ -111,9 +112,12 @@ if __name__ == "__main__":
             pbars['test'].close()
 
         # Display Grid Search Result
-        # grid.read_records(resultDict)
-        # print("=== Grid Search Result ===")
-        # print(grid)
+        for i in range(len(gridSearch)):
+            lr, dr = gridSearch[i]
+            acc = resultDict[(lr, dr)]
+            gridSearch[i] = acc
+        print("\n\n=== Grid Search Result ===")
+        gridSearch.print2DGrid()
         hyperparams_list = []
         result_list = []
         for (lr, dr), acc in resultDict.items():
