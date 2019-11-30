@@ -38,7 +38,7 @@ def test_random():
         acc = random.uniform(0,100)
         hyperparams_list.append((lr, dr))
         result_list.append(acc)
-    vis_search(hyperparams_list, result_list)
+    vis_search(hyperparams_list, result_list, save_name="random")
 
 if __name__ == "__main__":
     test_random()

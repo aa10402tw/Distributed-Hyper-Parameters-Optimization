@@ -27,6 +27,8 @@ def initMPI():
     return MPIWorld(comm, world_size, my_rank, MASTER_RANK=0, node_name=node_name)
 
 #print(help(mpi4py))
-print(mpi4py.get_config())
+print()
 mpiWorld = initMPI()
+print(mpi4py.get_config())
+print()
 

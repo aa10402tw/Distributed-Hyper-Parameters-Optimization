@@ -6,11 +6,11 @@ from torchvision import datasets, transforms
 from torch.autograd import Variable
 import random
 
-# from mpi4py import MPI
+from mpi4py import MPI
 import os 
 import glob
-#from tqdm import tqdm
-from tqdm import tqdm_notebook as tqdm
+from tqdm import tqdm
+# from tqdm import tqdm_notebook as tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -39,15 +39,14 @@ class Net(nn.Module):
         x = self.fc(x)
         return x
  
-def train(model, train_loader, optimizer, criterion, device, pbar_train=None):     
+def train(model, train_loader, optimizer, criterion, device, 
+    pbar_train=None, DEBUG=False):     
     model.train()
     correct, total = 0, 0
     loss_total = 0
     if pbar_train is not None:
         pbar_train.reset(total=len(train_loader))
     for batch_idx, (inputs, labels) in enumerate(train_loader):
-        if DEBUG and batch_idx > 3:
-            break
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
         outputs = model(inputs)
@@ -62,9 +61,12 @@ def train(model, train_loader, optimizer, criterion, device, pbar_train=None):
         if pbar_train is not None:
             pbar_train.set_postfix({"Loss":loss_total/(batch_idx+1), "Acc":correct/total})
             pbar_train.update()
+        if DEBUG:
+            break
     return correct/total
  
-def test(model, test_loader, criterion, device, pbar_test=None):
+def test(model, test_loader, criterion, device, 
+    pbar_test=None, DEBUG=False):
     model.eval()      
     test_loss = 0    
     correct, total = 0, 0
@@ -72,8 +74,6 @@ def test(model, test_loader, criterion, device, pbar_test=None):
         pbar_test.reset(total=len(test_loader))
     with torch.no_grad():
         for batch_idx, (inputs, labels) in enumerate(test_loader):
-            if DEBUG and batch_idx > 3:
-                break
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             test_loss += criterion(outputs, labels).item()
@@ -84,10 +84,13 @@ def test(model, test_loader, criterion, device, pbar_test=None):
             if pbar_test is not None:
                 pbar_test.set_postfix({"Loss":test_loss/(batch_idx+1), "Acc":correct/total})
                 pbar_test.update() 
+            if DEBUG:
+                break
     return 100.* (correct/total)
 
 
-def train_mnist(lr=lr_default, dr=dr_default, mmt=mmt_default, bs=bs_default, device=None, pbars=None):
+def train_mnist(lr=lr_default, dr=dr_default, mmt=mmt_default, bs=bs_default, 
+    device=None, pbars=None, DEBUG=False):
 
     if pbars is not None:
         pbar_train = pbars['train']
@@ -119,14 +122,18 @@ def train_mnist(lr=lr_default, dr=dr_default, mmt=mmt_default, bs=bs_default, de
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(1, num_epochs+1):
+        # Train
         if pbar_train is not None:
             pbar_train.set_description("[lr={:.4f}, dr={:.4f}] Train ({}/{})".format(
                 lr, dr, epoch, num_epochs))
-        train_acc = train(net, train_loader, optimizer, criterion, device, pbar_train)
+        train_acc = train(net, train_loader, optimizer, criterion, 
+            device, pbar_train, DEBUG=DEBUG)
+        # Test
         if pbar_test is not None:
             pbar_test.set_description( "[lr={:.4f}, dr={:.4f}] Test  ({}/{})".format(
                 lr, dr, epoch, num_epochs))
-        test_acc = test(net, val_loader, criterion, device, pbar_test)
+        test_acc = test(net, val_loader, criterion, 
+            device, pbar_test, DEBUG=DEBUG)
 
     return test_acc
 
@@ -207,7 +214,12 @@ def initPbars(mpiWorld):
     else:
         return {"search":None, "train":None, "test":None}
 
-def syncData(dataDict, comm, world_size, my_rank, MASTER_RANK, blocking=False):
+def syncData(dataDict, mpiWorld, blocking=False):
+    my_rank = mpiWorld.my_rank
+    world_size = mpiWorld.world_size
+    MASTER_RANK = mpiWorld.MASTER_RANK
+    comm = mpiWorld.comm
+
     # Non-Blocking
     if not blocking:
         if my_rank == MASTER_RANK:
@@ -239,7 +251,7 @@ def syncData(dataDict, comm, world_size, my_rank, MASTER_RANK, blocking=False):
     return dataDict
 
 # === Visualization Search Result === #
-def vis_search(hyperparams, result=None):
+def vis_search(hyperparams, result=None, save_name=""):
     
     if result is None:
         xs = [h[0] for h in hyperparams]
@@ -271,7 +283,7 @@ def vis_search(hyperparams, result=None):
             plt.yticks(list(set(ys)))
         # plt.clim(0, 100)
         plt.colorbar()
-        plt.savefig('2D_vis.png')
+        plt.savefig('{}_2D_vis.png'.format(save_name))
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -280,4 +292,4 @@ def vis_search(hyperparams, result=None):
             cmap = plt.cm.get_cmap('cool')
             ax.scatter([x], [y], [z], c=[cmap(z_)])
             ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
-        plt.savefig('3D_vis.png')
+        plt.savefig('{}_3D_vis.png'.format(save_name))

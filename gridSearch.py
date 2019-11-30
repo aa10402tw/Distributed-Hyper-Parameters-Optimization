@@ -14,7 +14,7 @@ def product(tuple1):
         prod = prod * x
     return prod
 
-class Grid:
+class GridSearch:
     def __init__(self, hyperparams):
         # Assume all hparam is DRV
         self.hyperparams = hyperparams
@@ -94,7 +94,7 @@ class Grid:
         print(s)
 
     def __str__(self):
-        s = "=== Grid ===\n"
+        s = ""
         for drv in self.hyperparams:
             s += "{}:{}\n".format(drv.name, drv.choices)
         return s 
@@ -117,16 +117,25 @@ class Grid:
 def test_grid():
     lr = DRV(choices=[i/10 for i in range(1, 10+1)], name="lr")
     dr = DRV(choices=[i/10 for i in range(1, 10+1)], name="dr")
-    bs = DRV(choices=[16, 32, 64, 128, 256], name="bs")
-    hparams = HyperParams([lr, dr, bs])
+    #bs = DRV(choices=[16, 32, 64, 128, 256], name="bs")
+    hparams = HyperParams([lr, dr])
     print(hparams)
 
-    grid = Grid(hparams)
-    print(grid)
-    grid.print2DGrid()
-    for i in range(len(grid)):
-        grid[i] = i/1000
-    grid.print2DGrid()
+    gridSearch = GridSearch(hparams)
+    print(gridSearch)
+    gridSearch.print2DGrid()
+    for i in range(len(gridSearch)):
+        gridSearch[i] = i/1000
+    gridSearch.print2DGrid()
+
+    hyperparams_list = []
+    result_list = []
+    for i in range(len(gridSearch)):
+        lr, dr = gridSearch[i]
+        hyperparams_list.append((lr, dr))
+        result_list.append(random.uniform(0,100))
+    vis_search(hyperparams_list, result_list, save_name="grid")
+
 
 if __name__ == "__main__":
     test_grid()
