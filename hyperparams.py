@@ -44,7 +44,7 @@ class DRV:
             self.initValue()
 
     def initValue(self):
-        self.value = random.choices(self.choices, k=1)[0]
+        self.value = random.sample(self.choices, k=1)[0]
 
     def __str__(self):
         s = "{} = {} (Discrete Random Variable, choices={})".format(
