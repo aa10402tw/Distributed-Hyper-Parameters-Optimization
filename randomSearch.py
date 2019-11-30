@@ -27,7 +27,7 @@ class RandomSearch:
 
 def test_random():
     lr = CRV(low=0.0, high=1.0, name="lr")
-    dr = DRV(choices=[(i/10) for i in range(1, 10+1)], name="dr")
+    dr = CRV(low=0.0, high=1.0, name="dr")
     hparams = HyperParams([lr, dr])
     randomSearch = RandomSearch(hparams)
     print(randomSearch)

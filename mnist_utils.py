@@ -208,11 +208,38 @@ class MPIWorld:
     def isMaster(self):
         return self.my_rank == self.MASTER_RANK
 
-def initPbars(mpiWorld):
+def initPbars(mpiWorld, remote=False):
     if mpiWorld.isMaster():
-        return {"search":tqdm(), "train":tqdm(), "test":tqdm()}
+        if remote:
+            return {"search":tqdm(), "train":None, "test":None}
+        else:
+            return {"search":tqdm(), "train":tqdm(), "test":tqdm()}
     else:
         return {"search":None, "train":None, "test":None}
+
+def closePbars(pbars):
+    if pbars["search"] is not None:
+        pbars["search"].close()
+    if pbars["train"] is not None:
+        pbars["train"].close()
+    if pbars["test"] is not None:
+        pbars["test"].close()
+
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def get_best_acc(resultDict):
+    best_acc = 0.0
+    for key, acc in resultDict.items():
+        best_acc = max(best_acc, acc)
+    return best_acc
 
 def syncData(dataDict, mpiWorld, blocking=False):
     my_rank = mpiWorld.my_rank

@@ -61,25 +61,11 @@ if __name__ == "__main__":
     # === Init Progress Bar === #
     if mpiWorld.isMaster():
         print("\nArgs:{}\n".format(args))
-        print("=== Grid Search ===")
         print(gridSearch)
-        pbars = {
-            "search":tqdm(total=len(gridSearch), desc="Grid Search"),
-            "train" :tqdm(),
-            "test"  :tqdm()
-        }
-        if args.remote:
-            pbars = {
-                "search":tqdm(total=len(gridSearch), desc="Grid Search"),
-                "train" :None,
-                "test"  :None
-            }
-    else:
-        pbars = {
-            "search":None,
-            "train" :None,
-            "test"  :None
-        }
+    pbars = initPbars(mpiWorld, args.remote)
+    if mpiWorld.isMaster():
+        pbars['search'].reset(total=len(gridSearch))
+        pbars['search'].set_description("Grid Search")
 
     # === Get Indexs === #
     idxes = getIdxes(mpiWorld, gridSearch)
@@ -106,14 +92,11 @@ if __name__ == "__main__":
     mpiWorld.comm.Barrier()
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
     mpiWorld.comm.Barrier()
+
+    # Close Progress Bar 
+    closePbars(pbars)
     
     if mpiWorld.isMaster():
-        # Close Progress Bar 
-        pbars['search'].close()
-        if not args.remote:
-            pbars['train'].close()
-            pbars['test'].close()
-
         # Display Grid Search Result
         for i in range(len(gridSearch)):
             lr, dr = gridSearch[i]
@@ -127,6 +110,7 @@ if __name__ == "__main__":
             hyperparams_list.append((lr, dr))
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, "GridSearch")
+        print("\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
         # Print Execution Time
         end = time.time()

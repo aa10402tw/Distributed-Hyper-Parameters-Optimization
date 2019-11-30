@@ -94,7 +94,7 @@ class GridSearch:
         print(s)
 
     def __str__(self):
-        s = ""
+        s = "# === Grid Search === #\n"
         for drv in self.hyperparams:
             s += "{}:{}\n".format(drv.name, drv.choices)
         return s 

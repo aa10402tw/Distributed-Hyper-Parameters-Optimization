@@ -15,8 +15,15 @@ import glob
 from randomSearch import *
 from mnist_utils import *
 
-import psutil
 from argparse import ArgumentParser
+
+def get_num_search_local(mpiWorld, num_search_global):
+    world_size = mpiWorld.world_size
+    my_rank = mpiWorld.my_rank
+    total = num_search_global
+    start_idx = my_rank * (total/world_size) if my_rank != 0 else 0
+    end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
+    return int(end_idx) - int(start_idx)
 
 # Global Variable 
 MASTER_RANK = 0
@@ -25,95 +32,73 @@ device = torch.device("cpu")
 if __name__ == "__main__":
     start = time.time()
 
-    # ArgParser (Setting)
-    parser = ArgumentParser()
-    parser.add_argument("-remote", default=False)
-    parser.add_argument("-n", "--num_search", dest="n", default=8)
-    parser.add_argument("-lr_low", "--lr_low",  default=0)
-    parser.add_argument("-lr_high", "--lr_high", default=0.01)
-    args = parser.parse_args()
-
-    num_search_total = int(args.n)
-    lr_low = float(args.lr_low)
-    lr_high = float(args.lr_high)
-    batch_size_list = [16, 32, 64, 128, 256]
-
     # === Init MPI World === #
     mpiWorld = initMPI()
-    comm, world_size, my_rank, node_name = initMPI()
+
+    # === Argument === #
+    parser = ArgumentParser()
+    parser.add_argument("-remote", default=False)
+    parser.add_argument("-DEBUG",  default=False)
+    args = parser.parse_args()
+    args.DEBUG = str2bool(args.DEBUG)
 
     # === Init Search Space === #
-    var_lr = continuousRandomVariable(lr_low, lr_high )
-    var_batch_size = discreteRandomVariable(batch_size_list)
-    randomSearch = RandomSearch([var_lr, var_batch_size], ["learning rate", "batch size"])
+    num_search_global = 100
+    lr = CRV(low=0.0, high=1.0, name="lr")
+    dr = CRV(low=0.0, high=1.0, name="dr")
+    hparams = HyperParams([lr, dr])
+    randomSearch = RandomSearch(hparams)
 
-    comm.Barrier()
+    mpiWorld.comm.Barrier()
+
     # === Init Progress Bar === #
-    if my_rank == MASTER_RANK:
-        print("=== Random Search ===")
+    if mpiWorld.isMaster():
+        print("\nArgs:{}\n".format(args))
         print(randomSearch)
-        pbar_search  = tqdm(total=num_search_total, desc="Random Search")
-        if not args.remote:
-            pbar_train = tqdm(desc="Train (Master)")
-            pbar_test  = tqdm(desc="Test  (Master)")
-        else:
-            pbar_train = None
-            pbar_test  = None
-        num_search = 0
-    else:
-        pbar_search  = None
-        pbar_train = None
-        pbar_test  = None
+    pbars = initPbars(mpiWorld, args.remote)
+    if mpiWorld.isMaster():
+        pbars['search'].reset(total=num_search_global)
+        pbars['search'].set_description("Random Search")
 
     # === Get Indexs === #
-    start_idx = my_rank * (num_search_total/world_size) if my_rank != 0 else 0
-    end_idx = (my_rank+1) * (num_search_total/world_size) if my_rank != world_size-1 else num_search_total
-    idxes = [i for i in range(int(start_idx), int(end_idx))]
+    num_search_local  = get_num_search_local(mpiWorld, num_search_global)
     resultDict = {}
 
     # === Start Search === #
-    for idx in idxes:
+    for i in range(num_search_local):
 
         # Get Hyper-Parameters
-        lr, batch_size = randomSearch.get()
+        lr, dr = randomSearch.get()
 
         # Train MNIST
-        acc = train_mnist(lr, batch_size, device, pbar_train, pbar_test)
+        acc = train_mnist(lr=lr, dr=dr, 
+            device=device, pbars=pbars, DEBUG=args.DEBUG)
 
         # Sync Data
-        resultDict[(lr, batch_size)] = acc
-        resultDict = syncData(resultDict, comm, world_size, my_rank, MASTER_RANK, blocking=True)
+        resultDict[(lr, dr)] = acc
+        resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
         # Update Grid Search Progress bar
-        if my_rank == MASTER_RANK:
-            pbar_search.update(len(resultDict)-pbar_search.n)
+        if mpiWorld.isMaster():
+            pbars['search'].update(len(resultDict)-pbars['search'].n)
 
-    resultDict = syncData(resultDict, comm, world_size, my_rank, MASTER_RANK, blocking=True)
-    if my_rank == MASTER_RANK:
-        pbar_search.update(len(resultDict)-pbar_search.n)
+    mpiWorld.comm.Barrier()
+    resultDict = syncData(resultDict, mpiWorld, blocking=True)
+    mpiWorld.comm.Barrier()
 
-    comm.Barrier()
-    if my_rank == MASTER_RANK:
-        # Close Progress Bar 
-        pbar_search.close()
-        if not args.remote:
-            pbar_train.close()
-            pbar_test.close()
+    # Close Progress Bar 
+    closePbars(pbars)
+
+    if mpiWorld.isMaster():
 
         # Read & Print Grid Search Result
-        records = resultDict
-        hyperparams = []
-        results = []
-        print("\n=== Random Search Result ===\n")
-        print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
-        print("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc"))
-        print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
-        for (lr, batch_size), acc in records.items():
-            print("{:^15} | {:^10} | {:^10} |".format("%.4f"%float(lr), batch_size, "%.4f"%float(acc)))
-            hyperparams.append((float(lr), int(batch_size)))
-            results.append(float(acc))
-        print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
-        vis_search(hyperparams, results)
+        hyperparams_list = []
+        result_list = []
+        for (lr, dr), acc in resultDict.items():
+            hyperparams_list.append((lr, dr))
+            result_list.append(acc)
+        vis_search(hyperparams_list, result_list, "RandomSearch")
+        print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
         # Print Execution Time
         end = time.time()
