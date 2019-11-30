@@ -34,7 +34,8 @@ if __name__ == "__main__":
 
     # === Init MPI World === #
     mpiWorld = initMPI()
-
+    mpiWorld.comm.Barrier()
+    
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
