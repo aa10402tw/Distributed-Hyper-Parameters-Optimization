@@ -104,6 +104,9 @@ if __name__ == "__main__":
             pbars['search'].update(len(resultDict)-pbars['search'].n)
 
     mpiWorld.comm.Barrier()
+    resultDict = syncData(resultDict, mpiWorld, blocking=True)
+    mpiWorld.comm.Barrier()
+    
     if mpiWorld.isMaster():
         # Close Progress Bar 
         pbars['search'].close()
