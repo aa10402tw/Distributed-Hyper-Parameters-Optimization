@@ -1,6 +1,11 @@
 import copy
 import random
 
+LEARNING_RATE_NAME = "lr"
+DROPOUT_RATE_NAME  = "dr"
+MOMENTUM_NAME      = "mmt"
+BATCH_SIZE_NAME    = "bs"
+
 # === Random Variable === #
 class CRV():
     def __init__(self, low, high, value=None, name=""):
@@ -121,10 +126,10 @@ class HyperParams:
 
 
 def test_hparams():
-    lr = CRV(low=0.0, high=1.0, name="lr")
-    dr = CRV(low=0.0, high=1.0, name="dr")
-    bs = DRV(choices=[16, 32, 64, 128, 256], name="bs")
-    hparams = HyperParams([lr, dr, bs], )
+    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
+    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
+    bs = DRV(choices=[16, 32, 64, 128, 256], name=BATCH_SIZE_NAME)
+    hparams = HyperParams([lr, dr, bs])
     print(hparams)
 
 if __name__ == "__main__":

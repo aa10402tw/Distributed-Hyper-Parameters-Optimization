@@ -12,7 +12,8 @@ import time
 import os 
 import glob
 from argparse import ArgumentParser
-from gridSearch import *
+
+from grid_search_utils import *
 from mnist_utils import *
 
 MASTER_RANK = 0
@@ -54,13 +55,14 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
     parser.add_argument("-DEBUG",  default=False)
+    parser.add_argument("-exp",  default=False)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
-    
+    args.exp = str2bool(args.exp)
 
     # === Init Search Grid === #
-    lr = DRV(choices=[i/10 for i in range(1, 10+1)], name="lr")
-    dr = DRV(choices=[i/10 for i in range(1, 10+1)], name="dr")
+    lr = DRV(choices=[i/10 for i in range(1, 5+1)], name=LEARNING_RATE_NAME)
+    dr = DRV(choices=[i/10 for i in range(1, 5+1)], name=DROPOUT_RATE_NAME )
     hparams = HyperParams([lr, dr])
     gridSearch = GridSearch(hparams)
 
@@ -82,15 +84,16 @@ if __name__ == "__main__":
     # === Start Search === #
     for idx in idxes:
         # Get Hyper-Parameters
-        lr, dr = gridSearch[idx]
+        hparams = gridSearch[idx]
+        lr, dr = hparams.getValueTuple()
 
         # Train MNIST
-        acc = train_mnist(lr=lr, dr=dr, 
-            device=device, pbars=pbars, DEBUG=args.DEBUG)
+        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         
         # Sync Data
         resultDict[(lr, dr)] = acc
-        resultDict = syncData(resultDict, mpiWorld, blocking=True)
+        if not args.exp:
+            resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
         # Update Grid Search Progress bar
         if mpiWorld.isMaster():
@@ -106,7 +109,8 @@ if __name__ == "__main__":
     if mpiWorld.isMaster():
         # Display Grid Search Result
         for i in range(len(gridSearch)):
-            lr, dr = gridSearch[i]
+            hparams = gridSearch[idx]
+            lr, dr = hparams.getValueTuple()
             acc = resultDict[(lr, dr)]
             gridSearch[i] = acc
         print("\n\n=== Grid Search Result ===")

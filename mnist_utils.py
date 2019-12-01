@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
+from hyperparams import *
+
 DEBUG = False
 bs_default = 64
 mmt_default = 0.0
@@ -89,8 +91,22 @@ def test(model, test_loader, criterion, device,
     return 100.* (correct/total)
 
 
-def train_mnist(lr=lr_default, dr=dr_default, mmt=mmt_default, bs=bs_default, 
-    device=None, pbars=None, DEBUG=False):
+def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
+    # Set up Hyper-parameters
+    bs = bs_default 
+    mmt = mmt_default
+    dr = dr_default
+    lr = lr_default
+
+    for rv in hparams:
+        if rv.name == LEARNING_RATE_NAME:
+            lr = rv.value
+        elif rv.name == DROPOUT_RATE_NAME:
+            dr = rv.value
+        elif rv.name == MOMENTUM_NAME:
+            mmt = rv.value
+        elif rv.name == BATCH_SIZE_NAME:
+            bs = rv.value
 
     if pbars is not None:
         pbar_train = pbars['train']
@@ -154,39 +170,6 @@ def get_val_loader(batch_size):
                        transforms.Normalize((0.1307,), (0.3081,))
    ])), batch_size=batch_size, shuffle=True)
     return test_loader
-
-# === Record === #
-def save_record(lr, batch_size, acc, save_dir="record/minst"):
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    file_name = "{}_{}.txt".format(lr, batch_size)
-    with open(os.path.join(save_dir, file_name), "w") as f:
-        f.write("{},{},{}".format(lr, batch_size, acc))
-
-def read_record(lr, batch_size, save_dir="record/minst"):
-    file_name = "{}_{}.txt".format(lr, batch_size)
-    with open(os.path.join(save_dir, file_name), "r") as f:
-        lines = f.readlines()
-        line = lines[0]
-        lr, batch_size, acc = line.split(",")
-        return float(acc)
-
-def clear_records(save_dir="record/minst"):
-    files = glob.glob("record/minst/*.txt")
-    for file in files:
-        os.remove(file)
-
-def read_records(save_dir="record/minst"):
-    file_paths = glob.glob(save_dir+"/*.txt")
-    keys = []
-    values = []
-    for file_path in file_paths:
-        file_name = os.path.basename(file_path)
-        lr, batch_size = file_name.split(".txt")[0].split("_")
-        acc = read_record(lr, batch_size)
-        keys.append((lr, batch_size))
-        values.append(acc)
-    return dict(zip(keys, values))
 
 # === MPI === #
 def initMPI():

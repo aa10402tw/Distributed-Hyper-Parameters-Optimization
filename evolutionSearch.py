@@ -15,6 +15,7 @@ class EvoluationSearch:
         self.population = [self.hparams.copy().initValue() for i in range(population_size)]
         self.prob_crossover = prob_crossover
         self.prob_mutation  = prob_mutation
+        self.resultDict = {}
 
     def crossover(self, population):
         population_crossover = []
@@ -48,13 +49,95 @@ class EvoluationSearch:
                     population_mutation.append(hps_new)
         return population_mutation
 
+    def get_unevaluated_population(self, population):
+        unevaluated_population = []
+        for hyperparams in population:
+            key = hyperparams
+            if key not in self.resultDict:
+                unevaluated_population.append(hyperparams)
+        return unevaluated_population
+
+    def evaluate_population(self, population, mpiWorld, pbars, DEUBG):
+        # Sactter Population
+        local_population = [] 
+        local_fitness =  []
+        if mpiWorld.isMaster():
+            n = len(population) / (mpiWorld.world_size)
+            for i in range(mpiWorld.world_size):
+                s = int(i*n) if i != 0 else 0
+                e = int((i+1)*n) if i != mpiWorld.world_size-1 else len(population)
+                local_population.append(population[s:e])
+        local_population = mpiWorld.comm.scatter(local_population, root=mpiWorld.MASTER_RANK)
+        mpiWorld.comm.barrier()
+
+        # Evaluate local population
+        for i, hps in enumerate(local_population):
+            if mpiWorld.isMaster():
+                pbars['search'].set_postfix({
+                    "Best":"{:.2f}%".format(get_best_acc(resultDict)), 
+                    "Progress":"({}/{})".format(i+1, len(local_population))
+                })
+
+            
+            # Train MNIST
+            acc = train_mnist(hps, device=device, pbars=pbars, DEBUG=DEUBG)
+            local_fitness.append(acc)
+
+        # Gather Population and Fitness
+        local_population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
+        local_fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
+        
+        if mpiWorld.isMaster():
+            population = []
+            fitness = []
+            for (pop, fit) in zip(local_population_gather, local_fitness_gather):
+                population += pop
+                fitness    += fit
+            return population, fitness
+        else:
+            return None, None
+
+
+    def generation(self, mpiWorld, pbars, DEUBG=False):
+        population_dict = {}
+        if mpiWorld.isMaster():
+            # Crossover and Mutation
+            population = self.population
+            population_crossover = self.crossover(population)
+            population_mutation  = self.mutation(population+population_crossover)
+            population_dict['start'] = population
+            population_dict['crossover'] = population_crossover
+            population_dict['mutation']  = population_mutation
+            population = list(set(population+population_crossover+population_mutation))
+            unevaluated_population = self.get_unevaluated_population(population)
+        else:
+            unevaluated_population = None
+        unevaluated_population, fitness = evaluate_population(unevaluated_population, mpiWorld, pbars, DEUBG)
+        if mpiWorld.isMaster():
+            # Selection
+            # Update resultDict
+            for hparams, acc in zip(unevaluated_population, fitness):
+                if hparams not in resultDict:
+                    key = hparams
+                    resultDict[key] = acc
+            # Select best
+            scores = []
+            for hparams in population:
+                key = hparams
+                scores.append(resultDict[key])
+            sort_idx = np.argsort(scores)
+            scores = [scores[i.item()] for i in sort_idx][-self.population_size:][::-1]
+            population = [population[i.item()] for i in sort_idx][-self.population_size:][::-1]
+            population_dict['selcetion'] = population
+
+        return population_dict
+
+mpiWorld = initMPI()
 lr = CRV(low=0.0, high=1.0, name="lr")
 dr = CRV(low=0.0, high=1.0, name="dr")
 hparams = HyperParams([lr, dr])
 evoluationSearch = EvoluationSearch(hparams, population_size=5)
-print(evoluationSearch.population)
-print(evoluationSearch.crossover(evoluationSearch.population))
-print(evoluationSearch.mutation(evoluationSearch.population))
+
 
 
 

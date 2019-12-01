@@ -23,10 +23,10 @@ class GridSearch:
         self.result_grid = []
         for idx in range(len(self)):
             entry = self.idx2entry(idx)
-            values = []
+            hps = hyperparams.copy()
             for i, e in enumerate(entry):
-                values.append( self.hyperparams[i].choices[e] )
-            self.param_grid.append(tuple(values))
+                hps[i].value = hyperparams[i].choices[e]
+            self.param_grid.append(hps)
             self.result_grid.append(float('nan'))
 
     def get_hparams(self, key):
@@ -115,8 +115,8 @@ class GridSearch:
         return product(self.grid_shape)
 
 def test_grid():
-    lr = DRV(choices=[i/10 for i in range(1, 10+1)], name="lr")
-    dr = DRV(choices=[i/10 for i in range(1, 10+1)], name="dr")
+    lr = DRV(choices=[i/10 for i in range(1, 10+1)], name=LEARNING_RATE_NAME)
+    dr = DRV(choices=[i/10 for i in range(1, 10+1)], name=DROPOUT_RATE_NAME )
     #bs = DRV(choices=[16, 32, 64, 128, 256], name="bs")
     hparams = HyperParams([lr, dr])
     print(hparams)
@@ -125,13 +125,14 @@ def test_grid():
     print(gridSearch)
     gridSearch.print2DGrid()
     for i in range(len(gridSearch)):
-        gridSearch[i] = i/1000
+        gridSearch[i] = i/100
     gridSearch.print2DGrid()
 
     hyperparams_list = []
     result_list = []
     for i in range(len(gridSearch)):
-        lr, dr = gridSearch[i]
+        hparams = gridSearch[i]
+        lr, dr = hparams.getValueTuple()
         hyperparams_list.append((lr, dr))
         result_list.append(random.uniform(0,100))
     vis_search(hyperparams_list, result_list, save_name="grid")

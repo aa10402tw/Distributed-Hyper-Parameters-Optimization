@@ -45,6 +45,8 @@ def evaluate_popuation(population, mpiWorld, pbars):
                 "Progress":"({}/{})".format(i+1, len(local_population))
             })
 
+       
+
         # Get Hyper-Parameters
         lr, dr = hparams[0].value, hparams[1].value
         # Train MNIST
@@ -119,13 +121,6 @@ def generation(population, mpiWorld, resultDict, pbars):
         population = [population[i.item()] for i in sort_idx][-population_size:][::-1]
         population_dict['selcetion'] = population
     return population_dict
-
-def get_best_acc(resultDict):
-    best_acc = 0.0
-    for hparams, acc in resultDict.items():
-        if acc > best_acc:
-            best_acc = acc
-    return best_acc
 
 if __name__ == "__main__":
     start = time.time()

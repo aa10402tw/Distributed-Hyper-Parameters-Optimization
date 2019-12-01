@@ -13,7 +13,7 @@ class RandomSearch:
 
     def get(self):
         hparams = self.hyperparams.copy().initValue()
-        return hparams.getValueTuple()
+        return hparams
 
     def __str__(self):
         s = "=== Random Search ===\n"
@@ -26,15 +26,16 @@ class RandomSearch:
 
 
 def test_random():
-    lr = CRV(low=0.0, high=1.0, name="lr")
-    dr = CRV(low=0.0, high=1.0, name="dr")
+    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
+    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
     hparams = HyperParams([lr, dr])
     randomSearch = RandomSearch(hparams)
     print(randomSearch)
     hyperparams_list = []
     result_list = []
     for i in range(50):
-        lr, dr = randomSearch.get()
+        hparams = randomSearch.get()
+        lr, dr = hparams.getValueTuple()
         acc = random.uniform(0,100)
         hyperparams_list.append((lr, dr))
         result_list.append(acc)

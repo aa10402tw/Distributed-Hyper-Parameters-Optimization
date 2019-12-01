@@ -12,7 +12,7 @@ import time
 import os 
 import glob
 
-from randomSearch import *
+from random_search_utils import *
 from mnist_utils import *
 
 from argparse import ArgumentParser
@@ -45,13 +45,15 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
     parser.add_argument("-DEBUG",  default=False)
+    parser.add_argument("-exp",  default=False)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
+    args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    num_search_global = 100 
-    lr = CRV(low=0.0, high=1.0, name="lr")
-    dr = CRV(low=0.0, high=1.0, name="dr")
+    num_search_global = 25
+    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
+    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
     hparams = HyperParams([lr, dr])
     randomSearch = RandomSearch(hparams)
 
@@ -75,15 +77,16 @@ if __name__ == "__main__":
     for i in range(num_search_local):
 
         # Get Hyper-Parameters
-        lr, dr = randomSearch.get()
+        hparams = randomSearch.get()
+        lr, dr = hparams.getValueTuple()
 
         # Train MNIST
-        acc = train_mnist(lr=lr, dr=dr, 
-            device=device, pbars=pbars, DEBUG=args.DEBUG)
+        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
 
         # Sync Data
         resultDict[(lr, dr)] = acc
-        resultDict = syncData(resultDict, mpiWorld, blocking=True)
+        if not args.exp:
+            resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
         # Update Grid Search Progress bar
         if mpiWorld.isMaster():
