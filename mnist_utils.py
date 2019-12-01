@@ -63,7 +63,7 @@ def train(model, train_loader, optimizer, criterion, device,
         if pbar_train is not None:
             pbar_train.set_postfix({"Loss":loss_total/(batch_idx+1), "Acc":correct/total})
             pbar_train.update()
-        if DEBUG:
+        if DEBUG and batch_idx > 5:
             break
     return correct/total
  
@@ -86,7 +86,7 @@ def test(model, test_loader, criterion, device,
             if pbar_test is not None:
                 pbar_test.set_postfix({"Loss":test_loss/(batch_idx+1), "Acc":correct/total})
                 pbar_test.update() 
-            if DEBUG:
+            if DEBUG and batch_idx > 5:
                 break
     return 100.* (correct/total)
 
@@ -256,7 +256,6 @@ def syncData(dataDict, mpiWorld, blocking=False):
                     continue
                 dataDictReceived = comm.recv(source=i)
                 for key, value in dataDictReceived.items():
-
                     dataDict[key] = value
         else:
             comm.send(dataDict, dest=MASTER_RANK)

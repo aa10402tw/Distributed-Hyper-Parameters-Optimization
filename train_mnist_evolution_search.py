@@ -6,211 +6,172 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+from argparse import ArgumentParser
 from tqdm import tqdm
-# from mpi4py import MPI
+from mpi4py import MPI
+import numpy as np
 import time
 import os 
 import glob
-from argparse import ArgumentParser
-from evolutionSearch import *
+
+from evolution_search_utils import *
 from mnist_utils import *
-import numpy as np
 
 MASTER_RANK = 0
-device = torch.device("cuda:0")
+device = torch.device("cpu")
 
-def evaluate_popuation(population, mpiWorld, pbars):
-    # Divide Data
-    # local_population = []
-    # local_fitness =  []
-    # if mpiWorld.isMaster():
-    #     n = len(population) / (mpiWorld.world_size)
-    #     for i in range(mpiWorld.world_size):
-    #         s = int(i*n) if i != 0 else 0dropout_rate
-    #         e = int((i+1)*n) if i != mpiWorld.world_size-1 else len(population)
-    #         local_population.append(population[s:e])
-    # else:
-    #     local_population = None
-    # local_population = mpiWorld.comm.scatter(local_population, root=mpiWorld.MASTER_RANK)
-    # mpiWorld.comm.barrier()
-
-    local_population = population
-    local_fitness = []
-    # Evaluate HyperParameters
-    for i, hparams in enumerate(local_population):
-        # if mpiWorld.isMaster():
-        if True:
-            pbars['search'].set_postfix({
-                "Best":"{:.2f}%".format(get_best_acc(resultDict)), 
-                "Progress":"({}/{})".format(i+1, len(local_population))
-            })
-
-       
-
-        # Get Hyper-Parameters
-        lr, dr = hparams[0].value, hparams[1].value
-        # Train MNIST
-        acc = train_mnist(lr, dr, device, pbars['train'], pbars['test'])
-        local_fitness.append(acc)
-        
-    return local_population, local_fitness
-    # mpiWorld.comm.barrier()
-    # populations = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
-    # scores      = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
-    # if mpiWorld.isMaster():
-    #     population = []
-    #     fitness = []
-    #     for p in populations:
-    #         population += p
-    #     for s in scores:
-    #         fitness += s
-    #     return population, fitness
-    # else:
-    #     return None, None
-
-def get_unevaluated_population(population, resultDict):
-    #if mpiWorld.isMaster():
-    if True:
-        unevaluated_population = []
-        for hyperparams in population:
-            key = tuple(hyperparams.rvs)
-            if key not in resultDict:
-                unevaluated_population.append(hyperparams)
-        return unevaluated_population
-    else:
+def flatten(list_2d):
+    if list_2d is None:
         return None
+    list_1d = []
+    for l in list_2d:
+        list_1d += l
+    return list_1d
 
-def generation(population, mpiWorld, resultDict, pbars):
-    population_dict = {}
-    #if mpiWorld.isMaster():
-    if True:
-        population_dict['start'] = population
-        population_size = len(population)
+def evaluate_popuation(population, mpiWorld, pbars, DEBUG=False):
+    # Scatter Population
+    local_populations = []
+    if mpiWorld.isMaster():
+        world_size = mpiWorld.world_size
+        total = len(population)
+        for rank in range(world_size):
+            s = (rank)   * (total/world_size) if rank != 0            else 0
+            e = (rank+1) * (total/world_size) if rank != world_size-1 else total
+            local_populations.append(population[int(s):int(e)])
+    local_population = mpiWorld.comm.scatter(local_populations, root=mpiWorld.MASTER_RANK)
 
-        # === 1. Crossover === #
-        population_crossover = crossover(population)
-        population_dict['crossover'] = population_crossover
-        population += population_crossover
-        # print("\n", population_size, len(population), "\n")
+    # Evaluate local_population
+    local_fitness = []
+    for i, hparams in enumerate(local_population):
+        if mpiWorld.isMaster():
+            pbars['search'].set_description(
+                "Local:({}/{}), Global:{}".format(i+1, len(local_population), len(population))
+            )
+        # Train MNIST
+        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=DEBUG)
+        local_fitness.append(acc)
 
-        # ===  2. Mutation === #
-        population_mutation = mutation(population)
-        population_dict['mutation'] = population_mutation
-        population += population_mutation 
-        # print("\n", population_size, len(population), "\n")
+    # Gather Fitness
+    population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
+    fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
 
-    # === 3. Selcetion === #
-    # Evaluate Unevaluated Hypermeters  
-    unevaluated_population = get_unevaluated_population(population, resultDict)
-    unevaluated_population, fitness = evaluate_popuation(unevaluated_population, mpiWorld, pbars)
-    #if mpiWorld.isMaster():
-    if True:
+    return flatten(population_gather), flatten(fitness_gather)
+
+def generation(pop_start, resultDict, mpiWorld, pbars, DEBUG=False):
+    pop_dict = {}
+    uneval_pop = None
+    if mpiWorld.isMaster():
+        pop_dict['start'] = pop_start
+        population_size = len(pop_start)
+
+        # Crossover
+        pop_crossover = crossover(pop_start)
+        pop_dict['crossover'] = pop_crossover
+        population = pop_start + pop_crossover 
+
+        # Mutation
+        pop_mutation = mutation(population)
+        pop_dict['mutation'] = pop_mutation
+        population = population + pop_mutation
+
+        # Get unevaluated population
+        uneval_pop = get_unevaluated_population(population, resultDict)
+
+    # Evaluation
+    uneval_pop, uneval_fitness = evaluate_popuation(uneval_pop, mpiWorld, pbars, DEBUG)
+    if mpiWorld.isMaster():
         # Update resultDict
-        for hparams, acc in zip(unevaluated_population, fitness):
-            if hparams not in resultDict:
-                key = hparams
-                resultDict[key] = acc
-                # resultDict[key] = hparams[0].value
-        # Select best
-        scores = []
-        for hparams in population:
-            key = hparams
-            scores.append(resultDict[key])
-        sort_idx = np.argsort(scores)
-        scores = [scores[i.item()] for i in sort_idx][-population_size:][::-1]
-        population = [population[i.item()] for i in sort_idx][-population_size:][::-1]
-        population_dict['selcetion'] = population
-    return population_dict
+        for hps, acc in zip(uneval_pop, uneval_fitness):
+            if hps not in resultDict:
+                resultDict[hps] = acc
+        # Select Best
+        fitness = []
+        for hps in population:
+            fitness.append(resultDict[hps])
+        sort_idx  = np.argsort(fitness)
+        fitness = [fitness[i] for i in sort_idx]
+        population = [population[i] for i in sort_idx]
+        pop_dict['selection'] = population[-population_size:][::-1]
+    return pop_dict
+
 
 if __name__ == "__main__":
     start = time.time()
 
-    # REPRODUCIBILITY
-    torch.manual_seed(0)
-    torch.cuda.manual_seed_all(0)
-    np.random.seed(0)
-    random.seed(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
     # === Init MPI World === #
-    # mpiWorld = initMPI()
-    # pbars = initPbars(mpiWorld)
-    mpiWorld = None
-    pbars = {"search":tqdm(ascii=True), "train":tqdm(ascii=True), "test":tqdm(ascii=True)}
+    mpiWorld = initMPI()
+    mpiWorld.comm.Barrier()
+    logs = mpiWorld.comm.gather(mpiWorld.log, root=mpiWorld.MASTER_RANK)
+    if mpiWorld.isMaster():
+        print("\n=== MPI World ===")
+        for log in logs:
+            print(log)
 
-    # === Arg Parse === #
+   # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
+    parser.add_argument("-DEBUG",  default=False)
+    parser.add_argument("-exp",  default=False)
     args = parser.parse_args()
+    args.DEBUG = str2bool(args.DEBUG)
+    args.exp = str2bool(args.exp)
 
-    # === Init Population === #
-    population = []
+    # === Init Search Space === #
+    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
+    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME )
+    hparams = HyperParams([lr, dr])
+    
+    num_generation  = 10
+    population_size = 10
+    if mpiWorld.isMaster():
+        population = [hparams.copy().initValue() for i in range(population_size)] 
+    else:
+        population = None
+
+    # === Init Progress Bar === #
+    if mpiWorld.isMaster():
+        print("\n=== Args ===")
+        print("Args:{}\n".format(args))
+        print(hparams)
+    pbars = initPbars(mpiWorld, args.remote)
+    if mpiWorld.isMaster():
+        pbars['search'].reset(total=num_generation)
+        pbars['search'].set_description("Evolution Search")
+
     resultDict = {}
-    # if mpiWorld.isMaster():
-    if True:
-        population_size = 8
-        for i in range(population_size):
-            lr = CRV(low=0, high=1, name="learning rate")
-            dr = CRV(low=0, high=1, name="dropout rate")
-            hparams = HyperParams([lr, dr])
-            population.append(hparams)
+    mpiWorld.comm.Barrier()
 
-    num_generation = 8
-    #if mpiWorld.isMaster():
-    if True:
-        pbars['search'].__init__(total=num_generation, unit='generation')
-        pbars['search'].set_description("Evolutionary Search")
-        population_each_generation = []
-    for g in range(1, num_generation+1):
-        population_dict = generation(population, mpiWorld, resultDict, pbars)
-        #if mpiWorld.isMaster():
-        if True:
-            population = population_dict["selcetion"]
+    # === Start Search === #
+    pop_dicts = []
+    for i in range(num_generation):
+        pop_dict = generation(population, resultDict, mpiWorld, pbars, args.DEBUG)
+        if mpiWorld.isMaster():
+            population = pop_dict['selection']
+            pop_dicts.append(pop_dict)
             pbars['search'].update()
-            population_each_generation.append(population_dict)
+        else:
+            population = None
 
-    #mpiWorld.comm.Barrier()
-    #if mpiWorld.isMaster():
-    if True:
-        # # Close Progress Bar 
-        # pbars['search'].close()
-        # if not args.remote:
-        #     pbar_train.close()
-        #     pbar_test.close()
+    end = time.time()
+    closePbars(pbars)
 
-        # Display Evolutionary Search Result
-        records = resultDict
-        hyperparams = []
-        results = []
-        print("\n=== Evolutionary Search Result ===\n")
-        print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
-        print("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc"))
-        print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
+    if mpiWorld.isMaster():
+        # Display Grid Search Result
+        hyperparams_list = []
+        result_list = []
         for hparams, acc in resultDict.items():
-            (lr, batch_size) = hparams[0].value, hparams[1].value
-            print("{:^15} | {:^10} | {:^10} |".format("%.4f"%float(lr), batch_size, "%.4f"%float(acc)))
-            hyperparams.append((float(lr), int(batch_size)))
-            results.append(float(acc))
-        print("=" * len("{:^15} | {:^10} | {:^10} |".format("learning rate", "batch_size", "acc")))
-        # vis_search(hyperparams, results)
+            hyperparams_list.append(hparams.getValueTuple())
+            result_list.append(acc)
+        vis_search(hyperparams_list, result_list, "Evolution Search")
+        print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
+
+        print("Number of HyperParams evaluated\n", len(hyperparams_list))
 
         # Print Execution Time
-        end = time.time()
         print("Execution Time:", end-start)
 
-        import matplotlib.pyplot as plt
+        vis_generation(pop_dicts, save_name="es_same", same_limit=True)
+        vis_generation(pop_dicts, save_name="es", same_limit=False)
 
-        for i in range(num_generation):
-            if i >= 9:
-                break
-            plt.subplot(3, 3, i+1)
-            vis_population(population_each_generation[i]['start'], label='start')
-            vis_population(population_each_generation[i]['crossover'], label='crossover')
-            vis_population(population_each_generation[i]['mutation'], label='mutation')
-            vis_population(population_each_generation[i]['selcetion'], label='selcetion')
-            # plt.legend(loc='best')
-            plt.xlim(-0.2, 1.2)
-        plt.show()
-
-        
+        # for pop_dict in pop_dicts:
+        #     print(pop_dict['selection'])

@@ -6,19 +6,19 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+from argparse import ArgumentParser
 from tqdm import tqdm
 from mpi4py import MPI
+import numpy as np
 import time
 import os 
 import glob
-from argparse import ArgumentParser
 
 from grid_search_utils import *
 from mnist_utils import *
 
 MASTER_RANK = 0
 device = torch.device("cpu")
-
 
 def getIdxes(mpiWorld, gridSearch):
     world_size = mpiWorld.world_size
@@ -28,16 +28,6 @@ def getIdxes(mpiWorld, gridSearch):
     end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
     idxes = [i for i in range(int(start_idx), int(end_idx))]
     return idxes
-
-def str2bool(v):
-    if isinstance(v, bool):
-       return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 if __name__ == "__main__":
     start = time.time()
@@ -109,7 +99,7 @@ if __name__ == "__main__":
     if mpiWorld.isMaster():
         # Display Grid Search Result
         for i in range(len(gridSearch)):
-            hparams = gridSearch[idx]
+            hparams = gridSearch[i]
             lr, dr = hparams.getValueTuple()
             acc = resultDict[(lr, dr)]
             gridSearch[i] = acc
