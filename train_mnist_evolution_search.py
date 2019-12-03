@@ -127,7 +127,7 @@ if __name__ == "__main__":
     hparams = HyperParams([lr, dr])
     
     
-    population_size = 10
+    population_size = 9
     num_generation  = 9
     if mpiWorld.isMaster():
         population = [hparams.copy().initValue() for i in range(population_size)] 
