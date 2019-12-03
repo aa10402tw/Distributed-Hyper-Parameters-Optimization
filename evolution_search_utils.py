@@ -18,6 +18,18 @@ def get_unevaluated_population(population, resultDict):
             unevaluated_population.append(hyperparams)
     return unevaluated_population
 
+def make_child(population, n_child):
+    population = list(set(population))
+    child = []
+    new_pop = population + child
+    while(len(new_pop) - len(population) < n_child):
+        child += crossover(population)
+        child += mutation(population)
+        new_pop = new_pop + child
+        new_pop = list(set(new_pop))
+    child = list(set(new_pop)-set(population))
+    return random.sample(child, n_child)
+
 def crossover(population, prob_crossover=0.8):
     new_population = []
     for i, hparams_1 in enumerate(population):
@@ -82,8 +94,9 @@ def vis_generation(pop_dicts, save_name="es" ,same_limit=True):
             break
         plt.subplot(3, 3, cnt+1)
         vis_population(pop_dicts[gen]['start'], marker='x')
-        vis_population(pop_dicts[gen]['crossover'], c='red', marker='x')
-        vis_population(pop_dicts[gen]['mutation'],  c='purple', marker='x')
+        vis_population(pop_dicts[gen]['child'], marker='x')
+        # vis_population(pop_dicts[gen]['crossover'], c='red', marker='x')
+        # vis_population(pop_dicts[gen]['mutation'],  c='purple', marker='x')
         vis_population(pop_dicts[gen]['selection'], c='green', marker='x')
         offset = 0.05
         if same_limit:
@@ -102,7 +115,11 @@ def test_evolution():
     num_generation = 5
 
     population = [hparams.copy().initValue() for i in range(population_size)]
+    print(len(population))
+    child = make_child(population, 10)
+    print(len(child))
     print(population)
+    print(child)
 
 if __name__ == "__main__":
     test_evolution()

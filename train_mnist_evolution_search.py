@@ -64,15 +64,21 @@ def generation(pop_start, resultDict, mpiWorld, pbars, DEBUG=False):
         pop_dict['start'] = pop_start
         population_size = len(pop_start)
 
-        # Crossover
-        pop_crossover = crossover(pop_start)
-        pop_dict['crossover'] = pop_crossover
-        population = pop_start + pop_crossover 
+        # Make Child
+        pop_child = make_child(pop_start, population_size)
+        pop_dict['child'] = pop_child
 
-        # Mutation
-        pop_mutation = mutation(population)
-        pop_dict['mutation'] = pop_mutation
-        population = population + pop_mutation
+        population = pop_start + pop_child
+
+        # # Crossover
+        # pop_crossover = crossover(pop_start)
+        # pop_dict['crossover'] = pop_crossover
+        # population = pop_start + pop_crossover 
+
+        # # Mutation
+        # pop_mutation = mutation(population)
+        # pop_dict['mutation'] = pop_mutation
+        # population = population + pop_mutation
 
         # Get unevaluated population
         uneval_pop = get_unevaluated_population(population, resultDict)
@@ -109,7 +115,6 @@ if __name__ == "__main__":
 
    # === Argument === #
     parser = ArgumentParser()
-    parser.add_argument("-remote", default=False)
     parser.add_argument("-DEBUG",  default=False)
     parser.add_argument("-exp",  default=False)
     args = parser.parse_args()
@@ -121,8 +126,9 @@ if __name__ == "__main__":
     dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME )
     hparams = HyperParams([lr, dr])
     
-    num_generation  = 10
+    
     population_size = 10
+    num_generation  = 9
     if mpiWorld.isMaster():
         population = [hparams.copy().initValue() for i in range(population_size)] 
     else:
@@ -133,7 +139,7 @@ if __name__ == "__main__":
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
         print(hparams)
-    pbars = initPbars(mpiWorld, args.remote)
+    pbars = initPbars(mpiWorld, args.exp)
     if mpiWorld.isMaster():
         pbars['search'].reset(total=num_generation)
         pbars['search'].set_description("Evolution Search")
@@ -165,7 +171,7 @@ if __name__ == "__main__":
         vis_search(hyperparams_list, result_list, "Evolution Search")
         print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
-        print("Number of HyperParams evaluated\n", len(hyperparams_list))
+        print("Number of HyperParams evaluated : {}".format(len(hyperparams_list)))
 
         # Print Execution Time
         print("Execution Time:", end-start)

@@ -18,7 +18,7 @@ import numpy as np
 from hyperparams import *
 
 DEBUG = False
-bs_default = 64
+bs_default = 256
 mmt_default = 0.0
 dr_default = 0.0
 lr_default = 0.1
@@ -191,11 +191,11 @@ class MPIWorld:
     def isMaster(self):
         return self.my_rank == self.MASTER_RANK
 
-def initPbars(mpiWorld, remote=False):
+def initPbars(mpiWorld, exp=False):
 
     if mpiWorld.isMaster():
         print("=== [Progress Bars] ===")
-        if remote:
+        if exp:
             return {"search":tqdm(), "train":None, "test":None}
         else:
             return {"search":tqdm(), "train":tqdm(), "test":tqdm()}
