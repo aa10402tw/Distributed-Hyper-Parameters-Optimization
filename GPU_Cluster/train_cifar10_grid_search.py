@@ -79,7 +79,7 @@ if __name__ == "__main__":
         hparams = gridSearch[idx]
         lr, mmt = hparams.getValueTuple()
 
-        # Train MNIST
+        # Train Cifar10
         acc = train_cifar10(hparams, num_epochs=args.num_epochs,
             device=device, pbars=pbars, DEBUG=args.DEBUG)
         

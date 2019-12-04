@@ -13,7 +13,7 @@ import os
 import glob
 
 from random_search_utils import *
-from mnist_utils import *
+from cifar10_utils import *
 
 from argparse import ArgumentParser
 
@@ -37,24 +37,27 @@ if __name__ == "__main__":
     mpiWorld.comm.Barrier()
     logs = mpiWorld.comm.gather(mpiWorld.log, root=mpiWorld.MASTER_RANK)
     if mpiWorld.isMaster():
+        check_dataset()
         print("\n=== MPI World ===")
         for log in logs:
             print(log)
+    mpiWorld.comm.Barrier()
 
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
     parser.add_argument("-DEBUG",  default=False)
     parser.add_argument("-exp",  default=False)
+    parser.add_argument("-num_epochs",  default=20, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    num_search_global = 100
+    num_search_global = 20
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
-    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
-    hparams = HyperParams([lr, dr])
+    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
+    hparams = HyperParams([lr, mmt])
     randomSearch = RandomSearch(hparams)
 
     mpiWorld.comm.Barrier()
@@ -78,13 +81,14 @@ if __name__ == "__main__":
 
         # Get Hyper-Parameters
         hparams = randomSearch.get()
-        lr, dr = hparams.getValueTuple()
+        lr, mmt = hparams.getValueTuple()
 
-        # Train MNIST
-        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
+        # Train Cifar10
+        acc = train_cifar10(hparams, num_epochs=args.num_epochs,
+            device=device, pbars=pbars, DEBUG=args.DEBUG)
 
         # Sync Data
-        resultDict[(lr, dr)] = acc
+        resultDict[(lr, mmt)] = acc
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
@@ -104,8 +108,8 @@ if __name__ == "__main__":
         # Read & Print Grid Search Result
         hyperparams_list = []
         result_list = []
-        for (lr, dr), acc in resultDict.items():
-            hyperparams_list.append((lr, dr))
+        for (lr, mmt), acc in resultDict.items():
+            hyperparams_list.append((lr, mmt))
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, "RandomSearch")
         print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))

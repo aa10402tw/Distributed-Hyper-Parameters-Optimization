@@ -128,12 +128,10 @@ def train_cifar10(hparams, num_epochs=num_epochs_default, device=None, pbars=Non
                 lr, mmt, epoch, num_epochs))
         train_acc = train(net, train_loader, optimizer, criterion, 
             device, pbar_train, DEBUG=DEBUG)
-        # Test
-        if pbar_test is not None:
-            pbar_test.set_description( "[lr={:.4f}, mmt={:.4f}] Test  ({}/{})".format(
-                lr, mmt, epoch, num_epochs))
-        test_acc = test(net, val_loader, criterion, 
-            device, pbar_test, DEBUG=DEBUG)
+    # Test
+    if pbar_test is not None:
+        pbar_test.set_description( "[lr={:.4f}, mmt={:.4f}] Test".format(lr, mmt))
+    test_acc = test(net, val_loader, criterion, device, pbar_test, DEBUG=DEBUG)
 
     return test_acc
 
@@ -178,6 +176,7 @@ def check_dataset():
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
+
     trainset = torchvision.datasets.CIFAR10(
         root='./data', train=True, download=True, 
         transform=transform_train
