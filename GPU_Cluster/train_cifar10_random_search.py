@@ -51,7 +51,7 @@ if __name__ == "__main__":
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    num_search_global = 20
+    num_search_global = 25
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, mmt])
@@ -111,6 +111,8 @@ if __name__ == "__main__":
         vis_search(hyperparams_list, result_list, "RandomSearch")
         print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
+        print("Number of HyperParams evaluated : {}".format(len(hyperparams_list)))
+        
         # Print Execution Time
         end = time.time()
         print("Execution Time:", end-start)
