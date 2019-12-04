@@ -48,6 +48,7 @@ def initMPI():
 
 if __name__ == "__main__":
     mpiWorld = initMPI()
+    print(torch.cuda.is_available())
     net = Net()
     net.to(device)
     print("Rank:{} Device:{} Network:\n{}".format(mpiWorld.my_rank, device, net))
