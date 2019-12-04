@@ -4,4 +4,5 @@
 ./GPU_Cluster/*.png
 ./GPU_Cluster/__pycache__
 ./GPU_Cluster/data
+.ipynb_checkpoints
 

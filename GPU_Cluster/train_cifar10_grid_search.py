@@ -15,10 +15,9 @@ import os
 import glob
 
 from grid_search_utils import *
-from mnist_utils import *
+from cifar10_utils import *
 
-MASTER_RANK = 0
-device = torch.device("cpu")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def getIdxes(mpiWorld, gridSearch):
     world_size = mpiWorld.world_size
@@ -51,9 +50,9 @@ if __name__ == "__main__":
     args.exp = str2bool(args.exp)
 
     # === Init Search Grid === #
-    lr = DRV(choices=[i/10 for i in range(1, 10+1)], name=LEARNING_RATE_NAME)
-    dr = DRV(choices=[i/10 for i in range(1, 10+1)], name=DROPOUT_RATE_NAME )
-    hparams = HyperParams([lr, dr])
+    lr = DRV(choices=[i/10 for i in range(1, 2+1)], name=LEARNING_RATE_NAME)
+    mmt = DRV(choices=[i/10 for i in range(1, 2+1)], name=MOMENTUM_NAME )
+    hparams = HyperParams([lr, mmt])
     gridSearch = GridSearch(hparams)
 
     # === Init Progress Bar === #
@@ -75,13 +74,13 @@ if __name__ == "__main__":
     for idx in idxes:
         # Get Hyper-Parameters
         hparams = gridSearch[idx]
-        lr, dr = hparams.getValueTuple()
+        lr, mmt = hparams.getValueTuple()
 
         # Train MNIST
-        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
+        acc = train_cifar10(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         
         # Sync Data
-        resultDict[(lr, dr)] = acc
+        resultDict[(lr, mmt)] = acc
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
@@ -100,15 +99,15 @@ if __name__ == "__main__":
         # Display Grid Search Result
         for i in range(len(gridSearch)):
             hparams = gridSearch[i]
-            lr, dr = hparams.getValueTuple()
-            acc = resultDict[(lr, dr)]
+            lr, mmt = hparams.getValueTuple()
+            acc = resultDict[(lr, mmt)]
             gridSearch[i] = acc
         print("\n\n=== Grid Search Result ===")
         gridSearch.print2DGrid()
         hyperparams_list = []
         result_list = []
-        for (lr, dr), acc in resultDict.items():
-            hyperparams_list.append((lr, dr))
+        for (lr, mmt), acc in resultDict.items():
+            hyperparams_list.append((lr, mmt))
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, "GridSearch")
         print("\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))

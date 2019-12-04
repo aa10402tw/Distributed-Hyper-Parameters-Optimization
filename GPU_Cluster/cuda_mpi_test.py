@@ -8,10 +8,6 @@ import random
 
 import mpi4py
 from mpi4py import MPI
-import time
-import random
-from tqdm import tqdm
-from mnist_utils import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -54,5 +50,5 @@ if __name__ == "__main__":
     mpiWorld = initMPI()
     net = Net()
     net.to(device)
-    print(mpiWorld.my_rank, device, net)
+    print("Rank:{} Device:{} Network:\n{}".format(mpiWorld.my_rank, device, net))
     print("\n")

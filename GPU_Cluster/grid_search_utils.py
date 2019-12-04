@@ -1,11 +1,10 @@
-import os
-import glob
 import matplotlib.pyplot as plt
+import numpy as np
 
 from hyperparams import *
-from mnist_utils import *
+from cifar10_utils import *
 
-import numpy as np
+
 
 def product(tuple1):
     """Calculates the product of a tuple"""

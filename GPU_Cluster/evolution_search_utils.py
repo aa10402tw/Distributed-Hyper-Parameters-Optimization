@@ -1,13 +1,11 @@
-import os
-import glob
-import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-from mnist_utils import *
+import random
 import copy
 
 from hyperparams import *
+from cifar10_utils import *
 
 
 def get_unevaluated_population(population, resultDict):

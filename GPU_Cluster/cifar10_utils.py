@@ -1,21 +1,21 @@
 import torch
+import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
 from torch.autograd import Variable
-import random
+from torchvision import datasets, transforms
 
-from mpi4py import MPI
-import os 
-import glob
-from tqdm import tqdm
-# from tqdm import tqdm_notebook as tqdm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from mpi4py import MPI
+from tqdm import tqdm
 import numpy as np
+import random
+import os
 
 from hyperparams import *
+from models import *
 
 DEBUG = False
 bs_default = 256
@@ -24,22 +24,7 @@ dr_default = 0.0
 lr_default = 0.1
 num_epochs = 1
 
-# === Training CNN === #
-class Net(nn.Module):
-    def __init__(self, dropout_rate=0.5):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 2, kernel_size=5)
-        self.conv2 = nn.Conv2d(2, 4, kernel_size=5)
-        self.dropout = nn.Dropout(p=dropout_rate)
-        self.fc = nn.Linear(4*4*4, 10)
- 
-    def forward(self, x):
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2(x), 2))
-        x = x.view(-1, 4*4*4)
-        x = self.dropout(x)
-        x = self.fc(x)
-        return x
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
  
 def train(model, train_loader, optimizer, criterion, device, 
     pbar_train=None, DEBUG=False):     
@@ -91,7 +76,7 @@ def test(model, test_loader, criterion, device,
     return 100.* (correct/total)
 
 
-def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
+def train_cifar10(hparams, device=None, pbars=None, DEBUG=False):
     # Set up Hyper-parameters
     bs = bs_default 
     mmt = mmt_default
@@ -124,8 +109,7 @@ def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
     torch.backends.cudnn.benchmark = False
 
      # Init Network
-    net = Net(dropout_rate=dr)
-    #net.load_state_dict(torch.load("MnistNet.pth"))
+    net = EfficientNetB0()
     net.to(device)
 
     # Data Loader
@@ -140,36 +124,53 @@ def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
     for epoch in range(1, num_epochs+1):
         # Train
         if pbar_train is not None:
-            pbar_train.set_description("[lr={:.4f}, dr={:.4f}] Train ({}/{})".format(
-                lr, dr, epoch, num_epochs))
+            pbar_train.set_description("[lr={:.4f}, mmt={:.4f}] Train ({}/{})".format(
+                lr, mmt, epoch, num_epochs))
         train_acc = train(net, train_loader, optimizer, criterion, 
             device, pbar_train, DEBUG=DEBUG)
         # Test
         if pbar_test is not None:
-            pbar_test.set_description( "[lr={:.4f}, dr={:.4f}] Test  ({}/{})".format(
-                lr, dr, epoch, num_epochs))
+            pbar_test.set_description( "[lr={:.4f}, mmt={:.4f}] Test  ({}/{})".format(
+                lr, mmt, epoch, num_epochs))
         test_acc = test(net, val_loader, criterion, 
             device, pbar_test, DEBUG=DEBUG)
 
     return test_acc
 
 # === Data Loader === #
-def get_train_loader(batch_size):
-    train_loader = torch.utils.data.DataLoader(       
-        datasets.MNIST('./data', train=True, download=True,
-               transform=transforms.Compose([
-                   transforms.ToTensor(),
-                   transforms.Normalize((0.1307,), (0.3081,))
-               ])), batch_size=batch_size, shuffle=False)
+def get_train_loader(batch_size=128):
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    download = False if os.path.isdir("./data") else True
+    trainset = torchvision.datasets.CIFAR10(
+        root='./data', train=True, download=download, 
+        transform=transform_train
+    )
+    train_loader = torch.utils.data.DataLoader(
+        trainset, batch_size=batch_size, shuffle=True, 
+        num_workers=2
+    )
     return train_loader
 
-def get_val_loader(batch_size):
-    test_loader = torch.utils.data.DataLoader(        
-        datasets.MNIST('./data', train=False, transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-   ])), batch_size=batch_size, shuffle=True)
-    return test_loader
+def get_val_loader(batch_size=128):
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    download = False if os.path.isdir("./data") else True
+    testset = torchvision.datasets.CIFAR10(
+        root='./data', train=False, download=download, 
+        transform=transform_test
+    )
+    test_loader = torch.utils.data.DataLoader(
+        testset, batch_size=batch_size, shuffle=False, 
+        num_workers=2
+    )
+    return test_loader 
 
 # === MPI === #
 def initMPI():
@@ -304,3 +305,20 @@ def vis_search(hyperparams, result=None, save_name=""):
             ax.scatter([x], [y], [z], c=[cmap(z_)])
             ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
         plt.savefig('{}_3D_vis.png'.format(save_name))
+
+
+if __name__ == "__main__":
+    net = EfficientNetB0()
+    net.to(device)
+
+    train_loader = get_train_loader(32)
+    val_loader = get_val_loader(32)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), 
+        lr=0.1, momentum=0.9, weight_decay=5e-4)
+
+    train_acc = train(net, train_loader, optimizer, criterion, 
+            device, tqdm(desc='train'), DEBUG=True)
+    test_acc = test(net, val_loader, criterion, 
+            device, tqdm(desc='test'), DEBUG=True)
