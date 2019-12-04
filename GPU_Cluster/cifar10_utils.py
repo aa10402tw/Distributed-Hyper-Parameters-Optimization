@@ -22,7 +22,7 @@ bs_default = 256
 mmt_default = 0.0
 dr_default = 0.0
 lr_default = 0.1
-num_epochs = 20
+num_epochs_default = 20
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
  
@@ -76,7 +76,7 @@ def test(model, test_loader, criterion, device,
     return 100.* (correct/total)
 
 
-def train_cifar10(hparams, device=None, pbars=None, DEBUG=False):
+def train_cifar10(hparams, num_epochs=num_epochs_default, device=None, pbars=None, DEBUG=False):
     # Set up Hyper-parameters
     bs = bs_default 
     mmt = mmt_default
@@ -145,9 +145,8 @@ def get_train_loader(batch_size=128):
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
-    download = False if os.path.isdir("./data") else True
     trainset = torchvision.datasets.CIFAR10(
-        root='./data', train=True, download=download, 
+        root='./data', train=True, download=False, 
         transform=transform_train
     )
     train_loader = torch.utils.data.DataLoader(
@@ -161,9 +160,9 @@ def get_val_loader(batch_size=128):
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
-    download = False if os.path.isdir("./data") else True
+
     testset = torchvision.datasets.CIFAR10(
-        root='./data', train=False, download=download, 
+        root='./data', train=False, download=False, 
         transform=transform_test
     )
     test_loader = torch.utils.data.DataLoader(
@@ -171,6 +170,27 @@ def get_val_loader(batch_size=128):
         num_workers=2
     )
     return test_loader 
+
+def check_dataset():
+    transform_train = transforms.Compose([
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    trainset = torchvision.datasets.CIFAR10(
+        root='./data', train=True, download=True, 
+        transform=transform_train
+    )
+    transform_test = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+    ])
+    testset = torchvision.datasets.CIFAR10(
+        root='./data', train=False, download=True, 
+        transform=transform_test
+    )
+    return 
 
 # === MPI === #
 def initMPI():

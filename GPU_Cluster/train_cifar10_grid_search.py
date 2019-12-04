@@ -36,15 +36,18 @@ if __name__ == "__main__":
     mpiWorld.comm.Barrier()
     logs = mpiWorld.comm.gather(mpiWorld.log, root=mpiWorld.MASTER_RANK)
     if mpiWorld.isMaster():
+        check_dataset()
         print("\n=== MPI World ===")
         for log in logs:
             print(log)
-
+    mpiWorld.comm.Barrier()
+    
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("-remote", default=False)
     parser.add_argument("-DEBUG",  default=False)
     parser.add_argument("-exp",  default=False)
+    parser.add_argument("-num_epochs",  default=20, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
@@ -77,7 +80,8 @@ if __name__ == "__main__":
         lr, mmt = hparams.getValueTuple()
 
         # Train MNIST
-        acc = train_cifar10(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
+        acc = train_cifar10(hparams, num_epochs=args.num_epochs,
+            device=device, pbars=pbars, DEBUG=args.DEBUG)
         
         # Sync Data
         resultDict[(lr, mmt)] = acc
