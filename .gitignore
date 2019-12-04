@@ -1,4 +1,7 @@
-./data
-__pycache__
-record
-*.png
+./CPU_Cluster/*.png
+./CPU_Cluster/__pycache__
+./CPU_Cluster/data
+./GPU_Cluster/*.png
+./GPU_Cluster/__pycache__
+./GPU_Cluster/data
+

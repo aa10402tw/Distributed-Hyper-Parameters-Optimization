@@ -1,12 +1,16 @@
-# Usage Local
-	mpiexec -n 4 python train_mnist_grid_search.py -DEBUG True
-	mpiexec -n 4 python train_mnist_random_search.py -DEBUG True
-	mpiexec -n 4 python train_mnist_evolution_search.py -DEBUG True
+# Jupyter notebook to cluster
+Remote Activate Anaconda environment
+	cd ~/anaconda3/bin
+	source activate base
 
-# On Cluster 
-	mpiexec.mpich -hostfile hostfile_3 python3 train_mnist_grid_search.py -DEBUG True -exp True
-	mpiexec.mpich -hostfile hostfile_9 python3 train_mnist_grid_search.py -DEBUG True -exp True
-	mpiexec.mpich -hostfile hostfile_3 python3 train_mnist_random_search.py -DEBUG True -exp True
-	mpiexec.mpich -hostfile hostfile_9 python3 train_mnist_random_search.py -DEBUG True -exp True
-	mpiexec.mpich -hostfile hostfile_3 python3 train_mnist_evolution_search.py -DEBUG True -exp True
-	mpiexec.mpich -hostfile hostfile_9 python3 train_mnist_evolution_search.py -DEBUG True -exp True
+Remote 
+	ssh 0756079@140.113.215.195 -p 37031
+	cd ~/PP19_Final/Distributed-Hyper-Parameters-Optimization/GPU_Cluster
+	jupyter notebook --no-browser --port=8888
+	
+Local
+	ssh -N -L localhost:8888:localhost:8888 0756079@140.113.215.195 -p 37031
+
+# Execute 
+	/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfile /home/students/0756079/anaconda3/bin/python mpi_test.py
+	

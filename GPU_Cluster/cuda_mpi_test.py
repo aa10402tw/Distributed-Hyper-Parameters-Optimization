@@ -13,6 +13,8 @@ import random
 from tqdm import tqdm
 from mnist_utils import *
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 class Net(nn.Module):
     def __init__(self, dropout_rate=0.5):
         super(Net, self).__init__()
@@ -51,4 +53,6 @@ def initMPI():
 if __name__ == "__main__":
     mpiWorld = initMPI()
     net = Net()
-    print(mpiWorld.my_rank, net)
+    net.to(device)
+    print(mpiWorld.my_rank, device, net)
+    print("\n")
