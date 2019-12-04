@@ -43,7 +43,6 @@ if __name__ == "__main__":
 
     # === Argument === #
     parser = ArgumentParser()
-    parser.add_argument("-remote", default=False)
     parser.add_argument("-DEBUG",  default=False)
     parser.add_argument("-exp",  default=False)
     parser.add_argument("-num_epochs",  default=20, type=int)

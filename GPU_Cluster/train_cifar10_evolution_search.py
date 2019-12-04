@@ -15,10 +15,9 @@ import os
 import glob
 
 from evolution_search_utils import *
-from mnist_utils import *
+from cifar10_utils import *
 
-MASTER_RANK = 0
-device = torch.device("cpu")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def flatten(list_2d):
     if list_2d is None:
@@ -28,7 +27,7 @@ def flatten(list_2d):
         list_1d += l
     return list_1d
 
-def evaluate_popuation(population, mpiWorld, pbars, DEBUG=False):
+def evaluate_popuation(population, mpiWorld, pbars, args):
     # Scatter Population
     local_populations = []
     if mpiWorld.isMaster():
@@ -47,8 +46,9 @@ def evaluate_popuation(population, mpiWorld, pbars, DEBUG=False):
             pbars['search'].set_description(
                 "Local:({}/{}), Global:{}".format(i+1, len(local_population), len(population))
             )
-        # Train MNIST
-        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=DEBUG)
+        # Train Cifar10
+        acc = train_cifar10(hparams, num_epochs=args.num_epochs,
+            device=device, pbars=pbars, DEBUG=args.DEBUG)
         local_fitness.append(acc)
 
     # Gather Fitness
@@ -57,34 +57,23 @@ def evaluate_popuation(population, mpiWorld, pbars, DEBUG=False):
 
     return flatten(population_gather), flatten(fitness_gather)
 
-def generation(pop_start, resultDict, mpiWorld, pbars, DEBUG=False):
+def generation(pop_start, resultDict, mpiWorld, pbars, args):
     pop_dict = {}
     uneval_pop = None
     if mpiWorld.isMaster():
         pop_dict['start'] = pop_start
         population_size = len(pop_start)
 
-        # Make Child
+        # Make Child (Crossover & Mutation)
         pop_child = make_child(pop_start, population_size)
         pop_dict['child'] = pop_child
-
         population = pop_start + pop_child
-
-        # # Crossover
-        # pop_crossover = crossover(pop_start)
-        # pop_dict['crossover'] = pop_crossover
-        # population = pop_start + pop_crossover 
-
-        # # Mutation
-        # pop_mutation = mutation(population)
-        # pop_dict['mutation'] = pop_mutation
-        # population = population + pop_mutation
 
         # Get unevaluated population
         uneval_pop = get_unevaluated_population(population, resultDict)
 
     # Evaluation
-    uneval_pop, uneval_fitness = evaluate_popuation(uneval_pop, mpiWorld, pbars, DEBUG)
+    uneval_pop, uneval_fitness = evaluate_popuation(uneval_pop, mpiWorld, pbars, args)
     if mpiWorld.isMaster():
         # Update resultDict
         for hps, acc in zip(uneval_pop, uneval_fitness):
@@ -109,22 +98,25 @@ if __name__ == "__main__":
     mpiWorld.comm.Barrier()
     logs = mpiWorld.comm.gather(mpiWorld.log, root=mpiWorld.MASTER_RANK)
     if mpiWorld.isMaster():
+        check_dataset()
         print("\n=== MPI World ===")
         for log in logs:
             print(log)
+    mpiWorld.comm.Barrier()
 
-   # === Argument === #
+    # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("-DEBUG",  default=False)
     parser.add_argument("-exp",  default=False)
+    parser.add_argument("-num_epochs",  default=20, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
-    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME )
-    hparams = HyperParams([lr, dr])
+    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
+    hparams = HyperParams([lr, mmt])
     
     
     population_size = 9
@@ -150,7 +142,7 @@ if __name__ == "__main__":
     # === Start Search === #
     pop_dicts = []
     for i in range(num_generation):
-        pop_dict = generation(population, resultDict, mpiWorld, pbars, args.DEBUG)
+        pop_dict = generation(population, resultDict, mpiWorld, pbars, args)
         if mpiWorld.isMaster():
             population = pop_dict['selection']
             pop_dicts.append(pop_dict)
