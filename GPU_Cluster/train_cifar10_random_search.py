@@ -17,6 +17,8 @@ from cifar10_utils import *
 
 from argparse import ArgumentParser
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 def get_num_search_local(mpiWorld, num_search_global):
     world_size = mpiWorld.world_size
     my_rank = mpiWorld.my_rank
@@ -24,10 +26,6 @@ def get_num_search_local(mpiWorld, num_search_global):
     start_idx = my_rank * (total/world_size) if my_rank != 0 else 0
     end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
     return int(end_idx) - int(start_idx)
-
-# Global Variable 
-MASTER_RANK = 0
-device = torch.device("cpu") 
 
 if __name__ == "__main__":
     start = time.time()
