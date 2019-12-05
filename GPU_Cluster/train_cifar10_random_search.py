@@ -53,7 +53,7 @@ if __name__ == "__main__":
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    num_search_global = 4
+    num_search_global = 25
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, mmt])

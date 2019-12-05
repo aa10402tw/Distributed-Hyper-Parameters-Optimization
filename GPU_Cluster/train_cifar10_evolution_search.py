@@ -114,7 +114,7 @@ if __name__ == "__main__":
     
     
     population_size = 4
-    num_generation  = 1
+    num_generation  = 6
     if mpiWorld.isMaster():
         population = [hparams.copy().initValue() for i in range(population_size)] 
     else:
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         write_log(resultDict, save_name=acc_save_name)
         acc_logs = load_log(save_name=acc_save_name)
         #print(acc_logs)
-        
+
     # Save Figure
     if mpiWorld.isMaster():
         # Display Grid Search Result
