@@ -48,12 +48,13 @@ if __name__ == "__main__":
     parser.add_argument("-DEBUG",  default=False)
     parser.add_argument("-exp",  default=False)
     parser.add_argument("-num_epochs",  default=20, type=int)
+    parser.add_argument("-n_search",  default=50, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    num_search_global = 25
+    num_search_global = args.num_search
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, mmt])
