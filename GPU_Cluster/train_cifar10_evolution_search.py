@@ -108,13 +108,13 @@ if __name__ == "__main__":
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
-    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
+    c = 1e-8
+    lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, mmt])
     
-    
-    population_size = 4
-    num_generation  = 6
+    population_size = 8
+    num_generation  = 9
     if mpiWorld.isMaster():
         population = [hparams.copy().initValue() for i in range(population_size)] 
     else:

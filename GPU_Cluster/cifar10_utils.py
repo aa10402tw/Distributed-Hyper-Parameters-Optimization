@@ -335,6 +335,8 @@ def flatten(list_2d):
     return list_1d
 
 def write_log(logs, save_name="result/random"):
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     save_dict = {"log":logs}
     save_name += ".pickle"
     with open(save_name, 'wb') as file:

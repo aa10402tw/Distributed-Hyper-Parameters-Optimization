@@ -56,8 +56,8 @@ if __name__ == "__main__":
     args.exp = str2bool(args.exp)
 
     # === Init Search Grid === #
-    lr = DRV(choices=[i/10 for i in range(1, 10, 2)], name=LEARNING_RATE_NAME)
-    mmt = DRV(choices=[i/10 for i in range(1, 10, 2)], name=MOMENTUM_NAME )
+    lr = DRV(choices=[i/10 for i in range(1, 10, 1)], name=LEARNING_RATE_NAME)
+    mmt = DRV(choices=[i/10 for i in range(1, 10, 1)], name=MOMENTUM_NAME )
     hparams = HyperParams([lr, mmt])
     gridSearch = GridSearch(hparams)
 
