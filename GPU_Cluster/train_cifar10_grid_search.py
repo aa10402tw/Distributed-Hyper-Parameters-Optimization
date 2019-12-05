@@ -6,10 +6,12 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+
 from argparse import ArgumentParser
 from tqdm import tqdm
 from mpi4py import MPI
 import numpy as np
+import pickle
 import time
 import os 
 import glob
@@ -18,6 +20,7 @@ from grid_search_utils import *
 from cifar10_utils import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+save_name = "result/GridSearch"
 
 def getIdxes(mpiWorld, gridSearch):
     world_size = mpiWorld.world_size
@@ -71,6 +74,7 @@ if __name__ == "__main__":
     # === Get Indexs === #
     idxes = getIdxes(mpiWorld, gridSearch)
     resultDict = {}
+    result_log = []
     mpiWorld.comm.Barrier()
 
     # === Start Search === #
@@ -85,6 +89,7 @@ if __name__ == "__main__":
         
         # Sync Data
         resultDict[(lr, mmt)] = acc
+        result_log.append((mpiWorld.my_rank, lr, mmt, acc))
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
@@ -96,9 +101,21 @@ if __name__ == "__main__":
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
     mpiWorld.comm.Barrier()
 
+    end = time.time()
+
     # Close Progress Bar 
     closePbars(pbars)
     
+    # Write Logs
+    log_gather  = mpiWorld.comm.gather(result_log, root=mpiWorld.MASTER_RANK)
+    if mpiWorld.isMaster():
+        logs = flatten(log_gather)
+        write_log(logs, save_name=save_name)
+        logs = load_log(save_name=save_name)
+        # for log in logs:
+        #     print(log)
+
+    # Save Figure
     if mpiWorld.isMaster():
         # Display Grid Search Result
         for i in range(len(gridSearch)):
@@ -113,11 +130,10 @@ if __name__ == "__main__":
         for (lr, mmt), acc in resultDict.items():
             hyperparams_list.append((lr, mmt))
             result_list.append(acc)
-        vis_search(hyperparams_list, result_list, "GridSearch")
+        vis_search(hyperparams_list, result_list, save_name)
         print("\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
         print("Number of HyperParams evaluated : {}".format(len(hyperparams_list)))
         # Print Execution Time
-        end = time.time()
         print("Execution Time:", end-start)
         

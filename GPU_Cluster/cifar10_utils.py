@@ -11,6 +11,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from mpi4py import MPI
 from tqdm import tqdm
 import numpy as np
+import pickle
 import random
 import os
 
@@ -48,7 +49,7 @@ def train(model, train_loader, optimizer, criterion, device,
         if pbar_train is not None:
             pbar_train.set_postfix({"Loss":loss_total/(batch_idx+1), "Acc":correct/total})
             pbar_train.update()
-        if DEBUG and batch_idx > 5:
+        if DEBUG and batch_idx > 2:
             break
     return correct/total
  
@@ -71,7 +72,7 @@ def test(model, test_loader, criterion, device,
             if pbar_test is not None:
                 pbar_test.set_postfix({"Loss":test_loss/(batch_idx+1), "Acc":correct/total})
                 pbar_test.update() 
-            if DEBUG and batch_idx > 5:
+            if DEBUG and batch_idx > 2:
                 break
     return 100.* (correct/total)
 
@@ -325,6 +326,26 @@ def vis_search(hyperparams, result=None, save_name=""):
             ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
         plt.savefig('{}_3D_vis.png'.format(save_name))
 
+def flatten(list_2d):
+    if list_2d is None:
+        return None
+    list_1d = []
+    for l in list_2d:
+        list_1d += l
+    return list_1d
+
+def write_log(logs, save_name="result/random"):
+    save_dict = {"log":logs}
+    save_name += ".pickle"
+    with open(save_name, 'wb') as file:
+        pickle.dump(save_dict, file)
+        file.close()
+
+def load_log(save_name="result/random"):
+    save_name += ".pickle"
+    with open(save_name, 'rb') as file:
+        save_dict = pickle.load(file)
+    return save_dict['log']
 
 if __name__ == "__main__":
     net = EfficientNetB0()

@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 from mpi4py import MPI
 import numpy as np
+import pickle
 import time
 import os 
 import glob
@@ -18,14 +19,7 @@ from evolution_search_utils import *
 from cifar10_utils import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def flatten(list_2d):
-    if list_2d is None:
-        return None
-    list_1d = []
-    for l in list_2d:
-        list_1d += l
-    return list_1d
+save_name = "result/EvolutionSearch"
 
 def evaluate_popuation(population, mpiWorld, pbars, args):
     # Scatter Population
@@ -120,7 +114,7 @@ if __name__ == "__main__":
     
     
     population_size = 4
-    num_generation  = 6
+    num_generation  = 1
     if mpiWorld.isMaster():
         population = [hparams.copy().initValue() for i in range(population_size)] 
     else:
@@ -153,6 +147,18 @@ if __name__ == "__main__":
     end = time.time()
     closePbars(pbars)
 
+    # Write Logs
+    if mpiWorld.isMaster():
+        pop_save_name = "{}_pop".format(save_name)
+        acc_save_name = "{}_acc".format(save_name)
+        write_log(pop_dicts, save_name=pop_save_name)
+        pop_logs = load_log(save_name=pop_save_name)
+        #print(pop_logs)
+        write_log(resultDict, save_name=acc_save_name)
+        acc_logs = load_log(save_name=acc_save_name)
+        #print(acc_logs)
+        
+    # Save Figure
     if mpiWorld.isMaster():
         # Display Grid Search Result
         hyperparams_list = []
@@ -160,7 +166,7 @@ if __name__ == "__main__":
         for hparams, acc in resultDict.items():
             hyperparams_list.append(hparams.getValueTuple())
             result_list.append(acc)
-        vis_search(hyperparams_list, result_list, "Evolution Search")
+        vis_search(hyperparams_list, result_list, save_name)
         print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
         print("Number of HyperParams evaluated : {}".format(len(hyperparams_list)))
@@ -168,8 +174,8 @@ if __name__ == "__main__":
         # Print Execution Time
         print("Execution Time:", end-start)
 
-        vis_generation(pop_dicts, save_name="es_same", same_limit=True)
-        vis_generation(pop_dicts, save_name="es", same_limit=False)
+        vis_generation(pop_dicts, save_name="result/res_same", same_limit=True)
+        vis_generation(pop_dicts, save_name="result/es", same_limit=False)
 
         # for pop_dict in pop_dicts:
         #     print(pop_dict['selection'])

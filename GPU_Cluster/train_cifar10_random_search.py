@@ -6,6 +6,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
+import pickle
 from tqdm import tqdm
 from mpi4py import MPI
 import time
@@ -18,6 +19,7 @@ from cifar10_utils import *
 from argparse import ArgumentParser
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+save_name = "result/RandomSearch"
 
 def get_num_search_local(mpiWorld, num_search_global):
     world_size = mpiWorld.world_size
@@ -51,7 +53,7 @@ if __name__ == "__main__":
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
-    num_search_global = 25
+    num_search_global = 4
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, mmt])
@@ -64,7 +66,7 @@ if __name__ == "__main__":
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
         print(randomSearch)
-    pbars = initPbars(mpiWorld, args.remote)
+    pbars = initPbars(mpiWorld, args.exp)
     if mpiWorld.isMaster():
         pbars['search'].reset(total=num_search_global)
         pbars['search'].set_description("Random Search")
@@ -72,6 +74,7 @@ if __name__ == "__main__":
     # === Get Indexs === #
     num_search_local  = get_num_search_local(mpiWorld, num_search_global)
     resultDict = {}
+    result_log = []
 
     # === Start Search === #
     for i in range(num_search_local):
@@ -86,6 +89,7 @@ if __name__ == "__main__":
 
         # Sync Data
         resultDict[(lr, mmt)] = acc
+        result_log.append((mpiWorld.my_rank, lr, mmt, acc))
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
@@ -97,23 +101,34 @@ if __name__ == "__main__":
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
     mpiWorld.comm.Barrier()
 
+    end = time.time()
+
     # Close Progress Bar 
     closePbars(pbars)
 
+    # Write Logs
+    log_gather  = mpiWorld.comm.gather(result_log, root=mpiWorld.MASTER_RANK)
     if mpiWorld.isMaster():
+        logs = flatten(log_gather)
+        write_log(logs, save_name=save_name)
+        logs = load_log(save_name=save_name)
+        # for log in logs:
+        #     print(log)
 
+    # Save Figure
+    if mpiWorld.isMaster():
         # Read & Print Grid Search Result
         hyperparams_list = []
         result_list = []
         for (lr, mmt), acc in resultDict.items():
             hyperparams_list.append((lr, mmt))
             result_list.append(acc)
-        vis_search(hyperparams_list, result_list, "RandomSearch")
+        vis_search(hyperparams_list, result_list, save_name)
         print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
 
         print("Number of HyperParams evaluated : {}".format(len(hyperparams_list)))
         
         # Print Execution Time
-        end = time.time()
         print("Execution Time:", end-start)
+        
         
