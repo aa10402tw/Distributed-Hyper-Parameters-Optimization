@@ -45,10 +45,10 @@ if __name__ == "__main__":
 
     # === Argument === #
     parser = ArgumentParser()
-    parser.add_argument("-DEBUG",  default=False)
-    parser.add_argument("-exp",  default=False)
-    parser.add_argument("-num_epochs",  default=20, type=int)
-    parser.add_argument("-n_search",  default=50, type=int)
+    parser.add_argument("--DEBUG",  default=False)
+    parser.add_argument("--exp",  default=False)
+    parser.add_argument("--num_epochs",  default=20, type=int)
+    parser.add_argument("--n_search",  default=50, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)

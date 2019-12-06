@@ -1,6 +1,7 @@
 import copy
 import random
 
+
 LEARNING_RATE_NAME = "lr"
 DROPOUT_RATE_NAME  = "dr"
 MOMENTUM_NAME      = "mmt"
@@ -18,6 +19,13 @@ class CRV():
 
     def initValue(self):
         self.value = random.uniform(self.low, self.high)
+
+    def to_DRV(self, n_choices):
+        choices = []
+        offset = (self.high-self.low) / (n_choices+1)
+        for i in range(1, n_choices+1):
+            choices.append(round(i*offset, 6))
+        return DRV(choices, name=self.name)
 
     def __str__(self):
         s = "{} = {} (Continuous Random Variable, low={}, high={})".format(
@@ -129,6 +137,7 @@ def test_hparams():
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
     dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
     bs = DRV(choices=[16, 32, 64, 128, 256], name=BATCH_SIZE_NAME)
+    lr = lr.to_DRV(n_choices=9)
     hparams = HyperParams([lr, dr, bs])
     print(hparams)
 

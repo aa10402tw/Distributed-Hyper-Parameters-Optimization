@@ -47,17 +47,17 @@ if __name__ == "__main__":
     
     # === Argument === #
     parser = ArgumentParser()
-    parser.add_argument("-remote", default=False)
-    parser.add_argument("-DEBUG",  default=False)
-    parser.add_argument("-exp",  default=False)
-    parser.add_argument("-num_epochs",  default=20, type=int)
+    parser.add_argument("--DEBUG",  default=False)
+    parser.add_argument("--exp",  default=False)
+    parser.add_argument("--num_epochs",  default=20, type=int)
+    parser.add_argument("--grid_size",  default=9, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
 
     # === Init Search Grid === #
-    lr = DRV(choices=[i/10 for i in range(1, 10, 1)], name=LEARNING_RATE_NAME)
-    mmt = DRV(choices=[i/10 for i in range(1, 10, 1)], name=MOMENTUM_NAME )
+    lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
+    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME).to_DRV(args.grid_size)
     hparams = HyperParams([lr, mmt])
     gridSearch = GridSearch(hparams)
 
