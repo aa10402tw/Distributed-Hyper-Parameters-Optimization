@@ -66,7 +66,7 @@ if __name__ == "__main__":
         print("Args:{}\n".format(args))
         print(gridSearch)
     pbars = initPbars(mpiWorld, args.exp)
-    if mpiWorld.isMaster():
+    if mpiWorld.isMaster() and not args.exp:
         pbars['search'].reset(total=len(gridSearch))
         pbars['search'].set_description("Grid Search")
 
@@ -91,10 +91,9 @@ if __name__ == "__main__":
         result_log.append((mpiWorld.my_rank, lr, mmt, acc))
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
-
-        # Update Grid Search Progress bar
-        if mpiWorld.isMaster():
-            pbars['search'].update(len(resultDict)-pbars['search'].n)
+            # Update Grid Search Progress bar
+            if mpiWorld.isMaster():
+                pbars['search'].update(len(resultDict)-pbars['search'].n)
 
     mpiWorld.comm.Barrier()
     resultDict = syncData(resultDict, mpiWorld, blocking=True)

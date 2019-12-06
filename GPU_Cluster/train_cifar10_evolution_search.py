@@ -36,7 +36,7 @@ def evaluate_popuation(population, mpiWorld, pbars, args):
     # Evaluate local_population
     local_fitness = []
     for i, hparams in enumerate(local_population):
-        if mpiWorld.isMaster():
+        if mpiWorld.isMaster() and not args.exp:
             pbars['search'].set_description(
                 "Local:({}/{}), Global:{}".format(i+1, len(local_population), len(population))
             )
@@ -128,7 +128,7 @@ if __name__ == "__main__":
         print("Args:{}\n".format(args))
         print(hparams)
     pbars = initPbars(mpiWorld, args.exp)
-    if mpiWorld.isMaster():
+    if mpiWorld.isMaster() and not args.exp:
         pbars['search'].reset(total=num_generation)
         pbars['search'].set_description("Evolution Search")
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     pop_dicts = []
     for i in range(num_generation):
         pop_dict = generation(population, resultDict, mpiWorld, pbars, args)
-        if mpiWorld.isMaster():
+        if mpiWorld.isMaster() and not args.exp:
             population = pop_dict['selection']
             pop_dicts.append(pop_dict)
             pbars['search'].update()
