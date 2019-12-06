@@ -1,3 +1,6 @@
+## Connect to Server
+	ssh pp2019@140.113.216.71
+
 ## Update Git
 	mv ~/nfs/Distributed-Hyper-Parameters-Optimization/Our_Cluster/data ~/nfs
 	cd ~/nfs
