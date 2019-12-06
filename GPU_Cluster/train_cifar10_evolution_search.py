@@ -171,5 +171,5 @@ if __name__ == "__main__":
             hyperparams_list.append(hparams.getValueTuple())
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, save_name)
-        vis_generation(pop_dicts, save_name="es_same", same_limit=True)
-        vis_generation(pop_dicts, save_name="es", same_limit=False)
+        vis_generation(pop_dicts, save_name="result/es_same", same_limit=True)
+        vis_generation(pop_dicts, save_name="result/es", same_limit=False)
