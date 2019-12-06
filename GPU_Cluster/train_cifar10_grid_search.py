@@ -66,7 +66,7 @@ if __name__ == "__main__":
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
         print(gridSearch)
-    pbars = initPbars(mpiWorld, args.remote)
+    pbars = initPbars(mpiWorld, args.exp)
     if mpiWorld.isMaster():
         pbars['search'].reset(total=len(gridSearch))
         pbars['search'].set_description("Grid Search")
