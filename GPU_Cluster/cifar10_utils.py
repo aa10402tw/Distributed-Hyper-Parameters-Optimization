@@ -217,7 +217,7 @@ def initPbars(mpiWorld, exp=False):
     if mpiWorld.isMaster():
         print("=== [Progress Bars] ===")
         if exp:
-            return {"search":tqdm(), "train":None, "test":None}
+            return {"search":None, "train":None, "test":None}
         else:
             return {"search":tqdm(), "train":tqdm(), "test":tqdm()}
     else:

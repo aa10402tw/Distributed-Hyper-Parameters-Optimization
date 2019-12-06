@@ -54,8 +54,9 @@ if __name__ == "__main__":
 
     # === Init Search Space === #
     num_search_global = args.n_search
-    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
-    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
+    c = 1e-8
+    lr = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, mmt])
     randomSearch = RandomSearch(hparams)
 
@@ -67,7 +68,7 @@ if __name__ == "__main__":
         print("Args:{}\n".format(args))
         print(randomSearch)
     pbars = initPbars(mpiWorld, args.exp)
-    if mpiWorld.isMaster():
+    if mpiWorld.isMaster() and not args.exp:
         pbars['search'].reset(total=num_search_global)
         pbars['search'].set_description("Random Search")
 
@@ -92,10 +93,9 @@ if __name__ == "__main__":
         result_log.append((mpiWorld.my_rank, lr, mmt, acc))
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
-
-        # Update Grid Search Progress bar
-        if mpiWorld.isMaster():
-            pbars['search'].update(len(resultDict)-pbars['search'].n)
+            # Update Grid Search Progress bar
+            if mpiWorld.isMaster():
+                pbars['search'].update(len(resultDict)-pbars['search'].n)
 
     mpiWorld.comm.Barrier()
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
@@ -103,8 +103,8 @@ if __name__ == "__main__":
     closePbars(pbars)
 
     # === Display Result === #
-    end = time.time()
     if mpiWorld.isMaster():
+        end = time.time()
         print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
         print("Number of HyperParams evaluated : {}".format(len(resultDict)))
         print("Execution Time:", end-start)
