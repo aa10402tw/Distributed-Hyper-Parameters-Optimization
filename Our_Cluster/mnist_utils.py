@@ -1,10 +1,10 @@
 import torch
-import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
 from torchvision import datasets, transforms
+from torch.autograd import Variable
+import random
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -12,20 +12,34 @@ from mpi4py import MPI
 from tqdm import tqdm
 import numpy as np
 import pickle
-import random
-import os
+import os 
+import glob
 
 from hyperparams import *
-from models import *
 
 DEBUG = False
 bs_default = 256
 mmt_default = 0.0
 dr_default = 0.0
 lr_default = 0.1
-num_epochs_default = 20
+num_epochs = 1
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# === Training CNN === #
+class Net(nn.Module):
+    def __init__(self, dropout_rate=0.5):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 2, kernel_size=5)
+        self.conv2 = nn.Conv2d(2, 4, kernel_size=5)
+        self.dropout = nn.Dropout(p=dropout_rate)
+        self.fc = nn.Linear(4*4*4, 10)
+ 
+    def forward(self, x):
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2(x), 2))
+        x = x.view(-1, 4*4*4)
+        x = self.dropout(x)
+        x = self.fc(x)
+        return x
  
 def train(model, train_loader, optimizer, criterion, device, 
     pbar_train=None, DEBUG=False):     
@@ -49,7 +63,7 @@ def train(model, train_loader, optimizer, criterion, device,
         if pbar_train is not None:
             pbar_train.set_postfix({"Loss":loss_total/(batch_idx+1), "Acc":correct/total})
             pbar_train.update()
-        if DEBUG and batch_idx > 2:
+        if DEBUG and batch_idx > 5:
             break
     return correct/total
  
@@ -72,12 +86,12 @@ def test(model, test_loader, criterion, device,
             if pbar_test is not None:
                 pbar_test.set_postfix({"Loss":test_loss/(batch_idx+1), "Acc":correct/total})
                 pbar_test.update() 
-            if DEBUG and batch_idx > 2:
+            if DEBUG and batch_idx > 5:
                 break
     return 100.* (correct/total)
 
 
-def train_cifar10(hparams, num_epochs=num_epochs_default, device=None, pbars=None, DEBUG=False):
+def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
     # Set up Hyper-parameters
     bs = bs_default 
     mmt = mmt_default
@@ -110,7 +124,8 @@ def train_cifar10(hparams, num_epochs=num_epochs_default, device=None, pbars=Non
     torch.backends.cudnn.benchmark = False
 
      # Init Network
-    net = EfficientNetB0()
+    net = Net(dropout_rate=dr)
+    #net.load_state_dict(torch.load("MnistNet.pth"))
     net.to(device)
 
     # Data Loader
@@ -125,72 +140,50 @@ def train_cifar10(hparams, num_epochs=num_epochs_default, device=None, pbars=Non
     for epoch in range(1, num_epochs+1):
         # Train
         if pbar_train is not None:
-            pbar_train.set_description("[lr={:.4f}, mmt={:.4f}] Train ({}/{})".format(
-                lr, mmt, epoch, num_epochs))
+            pbar_train.set_description("[lr={:.4f}, dr={:.4f}] Train ({}/{})".format(
+                lr, dr, epoch, num_epochs))
         train_acc = train(net, train_loader, optimizer, criterion, 
             device, pbar_train, DEBUG=DEBUG)
-    # Test
-    if pbar_test is not None:
-        pbar_test.set_description( "[lr={:.4f}, mmt={:.4f}] Test".format(lr, mmt))
-    test_acc = test(net, val_loader, criterion, device, pbar_test, DEBUG=DEBUG)
+        # Test
+        if pbar_test is not None:
+            pbar_test.set_description( "[lr={:.4f}, dr={:.4f}] Test  ({}/{})".format(
+                lr, dr, epoch, num_epochs))
+        test_acc = test(net, val_loader, criterion, 
+            device, pbar_test, DEBUG=DEBUG)
 
     return test_acc
 
 # === Data Loader === #
-def get_train_loader(batch_size=128):
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-    trainset = torchvision.datasets.CIFAR10(
-        root='./data', train=True, download=False, 
-        transform=transform_train
-    )
-    train_loader = torch.utils.data.DataLoader(
-        trainset, batch_size=batch_size, shuffle=True, 
-        num_workers=2
-    )
+def get_train_loader(batch_size):
+    train_loader = torch.utils.data.DataLoader(       
+        datasets.MNIST('./data', train=True, download=False,
+               transform=transforms.Compose([
+                   transforms.ToTensor(),
+                   transforms.Normalize((0.1307,), (0.3081,))
+               ])), batch_size=batch_size, shuffle=False)
     return train_loader
 
-def get_val_loader(batch_size=128):
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-
-    testset = torchvision.datasets.CIFAR10(
-        root='./data', train=False, download=False, 
-        transform=transform_test
-    )
-    test_loader = torch.utils.data.DataLoader(
-        testset, batch_size=batch_size, shuffle=False, 
-        num_workers=2
-    )
-    return test_loader 
+def get_val_loader(batch_size):
+    test_loader = torch.utils.data.DataLoader(        
+        datasets.MNIST('./data', train=False, transform=transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.1307,), (0.3081,))
+   ])), batch_size=batch_size, shuffle=True)
+    return test_loader
 
 def check_dataset():
-    transform_train = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
+    train_set = torch.utils.data.DataLoader(       
+        datasets.MNIST('./data', train=True, download=True,
+               transform=transforms.Compose([
+                   transforms.ToTensor(),
+                   transforms.Normalize((0.1307,), (0.3081,))
+        ])), batch_size=32, shuffle=False)
+    test_set = torch.utils.data.DataLoader(        
+        datasets.MNIST('./data', train=False, transform=transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.1307,), (0.3081,))
+   ])), batch_size=32, shuffle=True)
 
-    trainset = torchvision.datasets.CIFAR10(
-        root='./data', train=True, download=True, 
-        transform=transform_train
-    )
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-    ])
-    testset = torchvision.datasets.CIFAR10(
-        root='./data', train=False, download=True, 
-        transform=transform_test
-    )
-    return 
 
 # === MPI === #
 def initMPI():
@@ -326,14 +319,6 @@ def vis_search(hyperparams, result=None, save_name=""):
             ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
         plt.savefig('{}_3D_vis.png'.format(save_name))
 
-def flatten(list_2d):
-    if list_2d is None:
-        return None
-    list_1d = []
-    for l in list_2d:
-        list_1d += l
-    return list_1d
-
 def write_log(logs, save_name="result/random"):
     if not os.path.exists("result"):
         os.makedirs("result")
@@ -349,18 +334,10 @@ def read_log(save_name="result/random"):
         save_dict = pickle.load(file)
     return save_dict['log']
 
-if __name__ == "__main__":
-    net = EfficientNetB0()
-    net.to(device)
-
-    train_loader = get_train_loader(32)
-    val_loader = get_val_loader(32)
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), 
-        lr=0.1, momentum=0.9, weight_decay=5e-4)
-
-    train_acc = train(net, train_loader, optimizer, criterion, 
-            device, tqdm(desc='train'), DEBUG=True)
-    test_acc = test(net, val_loader, criterion, 
-            device, tqdm(desc='test'), DEBUG=True)
+def flatten(list_2d):
+    if list_2d is None:
+        return None
+    list_1d = []
+    for l in list_2d:
+        list_1d += l
+    return list_1d

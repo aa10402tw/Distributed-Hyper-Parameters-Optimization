@@ -6,17 +6,16 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 
-import pickle
+from argparse import ArgumentParser
 from tqdm import tqdm
 from mpi4py import MPI
+import pickle
 import time
 import os 
 import glob
 
 from random_search_utils import *
 from cifar10_utils import *
-
-from argparse import ArgumentParser
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 save_name = "result/RandomSearch"
@@ -101,35 +100,29 @@ if __name__ == "__main__":
     mpiWorld.comm.Barrier()
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
     mpiWorld.comm.Barrier()
-
-    end = time.time()
-
-    # Close Progress Bar 
     closePbars(pbars)
 
-    # Write Logs
+    # === Display Result === #
+    end = time.time()
+    if mpiWorld.isMaster():
+        print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
+        print("Number of HyperParams evaluated : {}".format(len(resultDict)))
+        print("Execution Time:", end-start)
+
+    # === Write Result Logs === #
     log_gather  = mpiWorld.comm.gather(result_log, root=mpiWorld.MASTER_RANK)
     if mpiWorld.isMaster():
         logs = flatten(log_gather)
         write_log(logs, save_name=save_name)
-        logs = load_log(save_name=save_name)
-        # for log in logs:
-        #     print(log)
+        logs = read_log(save_name=save_name)
 
-    # Save Figure
+    # === Write Result Figures === #
     if mpiWorld.isMaster():
-        # Read & Print Grid Search Result
         hyperparams_list = []
         result_list = []
         for (lr, mmt), acc in resultDict.items():
             hyperparams_list.append((lr, mmt))
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, save_name)
-        print("\n\nBest Accuracy:{:.4f}\n".format(get_best_acc(resultDict)))
-
-        print("Number of HyperParams evaluated : {}".format(len(hyperparams_list)))
-        
-        # Print Execution Time
-        print("Execution Time:", end-start)
         
         

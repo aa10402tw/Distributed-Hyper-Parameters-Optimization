@@ -10,18 +10,25 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 from mpi4py import MPI
 import numpy as np
-import pickle
 import time
 import os 
 import glob
 
 from evolution_search_utils import *
-from cifar10_utils import *
+from mnist_utils import *
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cpu")
 save_name = "result/EvolutionSearch"
 
-def evaluate_popuation(population, mpiWorld, pbars, args):
+def flatten(list_2d):
+    if list_2d is None:
+        return None
+    list_1d = []
+    for l in list_2d:
+        list_1d += l
+    return list_1d
+
+def evaluate_popuation(population, mpiWorld, pbars, DEBUG=False):
     # Scatter Population
     local_populations = []
     if mpiWorld.isMaster():
@@ -40,9 +47,8 @@ def evaluate_popuation(population, mpiWorld, pbars, args):
             pbars['search'].set_description(
                 "Local:({}/{}), Global:{}".format(i+1, len(local_population), len(population))
             )
-        # Train Cifar10
-        acc = train_cifar10(hparams, num_epochs=args.num_epochs,
-            device=device, pbars=pbars, DEBUG=args.DEBUG)
+        # Train MNIST
+        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=DEBUG)
         local_fitness.append(acc)
 
     # Gather Fitness
@@ -51,7 +57,7 @@ def evaluate_popuation(population, mpiWorld, pbars, args):
 
     return flatten(population_gather), flatten(fitness_gather)
 
-def generation(pop_start, resultDict, mpiWorld, pbars, args):
+def generation(pop_start, resultDict, mpiWorld, pbars, DEBUG=False):
     pop_dict = {}
     uneval_pop = None
     if mpiWorld.isMaster():
@@ -61,13 +67,14 @@ def generation(pop_start, resultDict, mpiWorld, pbars, args):
         # Make Child (Crossover & Mutation)
         pop_child = make_child(pop_start, population_size)
         pop_dict['child'] = pop_child
+
         population = pop_start + pop_child
 
         # Get unevaluated population
         uneval_pop = get_unevaluated_population(population, resultDict)
 
     # Evaluation
-    uneval_pop, uneval_fitness = evaluate_popuation(uneval_pop, mpiWorld, pbars, args)
+    uneval_pop, uneval_fitness = evaluate_popuation(uneval_pop, mpiWorld, pbars, DEBUG)
     if mpiWorld.isMaster():
         # Update resultDict
         for hps, acc in zip(uneval_pop, uneval_fitness):
@@ -103,20 +110,20 @@ if __name__ == "__main__":
     parser.add_argument("--DEBUG",  default=False)
     parser.add_argument("--exp",  default=False)
     parser.add_argument("--n_gen",  default=9, type=int)
-    parser.add_argument("--pop_size",  default=8, type=int)
-    parser.add_argument("--num_epochs",  default=20, type=int)
+    parser.add_argument("--pop_size",  default=10, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
 
     # === Init Search Space === #
     c = 1e-8
-    lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
-    mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
-    hparams = HyperParams([lr, mmt])
+    lr = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    dr = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
+    hparams = HyperParams([lr, dr])
     
-    population_size = args.pop_size
+    # === Init Population === #
     num_generation  = args.n_gen
+    population_size = args.pop_size
     if mpiWorld.isMaster():
         population = [hparams.copy().initValue() for i in range(population_size)] 
     else:
@@ -138,7 +145,7 @@ if __name__ == "__main__":
     # === Start Search === #
     pop_dicts = []
     for i in range(num_generation):
-        pop_dict = generation(population, resultDict, mpiWorld, pbars, args)
+        pop_dict = generation(population, resultDict, mpiWorld, pbars, args.DEBUG)
         if mpiWorld.isMaster():
             population = pop_dict['selection']
             pop_dicts.append(pop_dict)
@@ -171,5 +178,5 @@ if __name__ == "__main__":
             hyperparams_list.append(hparams.getValueTuple())
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, save_name)
-        vis_generation(pop_dicts, save_name="es_same", same_limit=True)
-        vis_generation(pop_dicts, save_name="es", same_limit=False)
+        vis_generation(pop_dicts, save_name="result/es_same", same_limit=True)
+        vis_generation(pop_dicts, save_name="result/es", same_limit=False)

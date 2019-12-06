@@ -10,15 +10,14 @@ from argparse import ArgumentParser
 from tqdm import tqdm
 from mpi4py import MPI
 import numpy as np
-import pickle
 import time
 import os 
 import glob
 
 from grid_search_utils import *
-from cifar10_utils import *
+from mnist_utils import *
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = torch.device("cpu")
 save_name = "result/GridSearch"
 
 def getIdxes(mpiWorld, gridSearch):
@@ -43,21 +42,20 @@ if __name__ == "__main__":
         for log in logs:
             print(log)
     mpiWorld.comm.Barrier()
-    
+
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("--DEBUG",  default=False)
     parser.add_argument("--exp",  default=False)
-    parser.add_argument("--num_epochs",  default=20, type=int)
-    parser.add_argument("--grid_size",  default=9, type=int)
+    parser.add_argument("--grid_size",  default=10, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     args.exp = str2bool(args.exp)
 
     # === Init Search Grid === #
     lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
-    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME).to_DRV(args.grid_size)
-    hparams = HyperParams([lr, mmt])
+    dr  = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME).to_DRV(args.grid_size)
+    hparams = HyperParams([lr, dr])
     gridSearch = GridSearch(hparams)
 
     # === Init Progress Bar === #
@@ -80,15 +78,13 @@ if __name__ == "__main__":
     for idx in idxes:
         # Get Hyper-Parameters
         hparams = gridSearch[idx]
-        lr, mmt = hparams.getValueTuple()
+        lr, dr = hparams.getValueTuple()
 
-        # Train Cifar10
-        acc = train_cifar10(hparams, num_epochs=args.num_epochs,
-            device=device, pbars=pbars, DEBUG=args.DEBUG)
+        # Train MNIST
+        acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         
         # Sync Data
-        resultDict[(lr, mmt)] = acc
-        result_log.append((mpiWorld.my_rank, lr, mmt, acc))
+        resultDict[(lr, dr)] = acc
         if not args.exp:
             resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
@@ -114,21 +110,20 @@ if __name__ == "__main__":
         logs = flatten(log_gather)
         write_log(logs, save_name=save_name)
         logs = read_log(save_name=save_name)
-
-    # === Write Result Figures === #
+    
     if mpiWorld.isMaster():
         # Display Grid Search Result
         for i in range(len(gridSearch)):
             hparams = gridSearch[i]
-            lr, mmt = hparams.getValueTuple()
-            acc = resultDict[(lr, mmt)]
+            lr, dr = hparams.getValueTuple()
+            acc = resultDict[(lr, dr)]
             gridSearch[i] = acc
         print("\n\n=== Grid Search Result ===")
         gridSearch.print2DGrid()
         hyperparams_list = []
         result_list = []
-        for (lr, mmt), acc in resultDict.items():
-            hyperparams_list.append((lr, mmt))
+        for (lr, dr), acc in resultDict.items():
+            hyperparams_list.append((lr, dr))
             result_list.append(acc)
         vis_search(hyperparams_list, result_list, save_name)
         

@@ -1,6 +1,11 @@
-CPU_Cluster/*.png
+Our_Cluster/__pycache__/
+Our_Cluster/data/
+Our_Cluster/result/*.pickle
+Our_Cluster/result/*.png
 CPU_Cluster/__pycache__/
 CPU_Cluster/data/
+CPU_Cluster/result/*.pickle
+CPU_Cluster/result/*.png
 GPU_Cluster/__pycache__/
 GPU_Cluster/data/
 GPU_Cluster/result/*.pickle
