@@ -145,6 +145,7 @@ if __name__ == "__main__":
             pbars['search'].update()
         else:
             population = None
+    mpiWorld.comm.Barrier()
     closePbars(pbars)
 
     # === Display Result === #
