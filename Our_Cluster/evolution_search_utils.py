@@ -106,6 +106,17 @@ def vis_generation(pop_dicts, save_name="es" ,same_limit=True):
     plt.savefig('{}_generation.png'.format(save_name))
 
 
+def get_evo_name(hparams, pop_size, n_gen):
+    s = "=== Evolution Search ===\n"
+    s += "pop_size:{}\n".format(pop_size)
+    s += "num_gen:{}\n".format(n_gen)
+    for rv in hparams:
+        if isinstance(rv, DRV):
+            s += "{}:{}\n".format(rv.name, rv.choices)
+        if isinstance(rv, CRV):
+            s += "{}:[{} ~ {}]\n".format(rv.name, rv.low, rv.high)
+    return s
+
 def test_evolution():
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
     dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)

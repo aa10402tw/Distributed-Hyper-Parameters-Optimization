@@ -133,7 +133,7 @@ if __name__ == "__main__":
     if mpiWorld.isMaster():
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
-        print(hparams)
+        print(get_evo_name(hparams, args.pop_size, args.n_gen))
     pbars = initPbars(mpiWorld, args.exp)
     if mpiWorld.isMaster():
         pbars['search'].reset(total=num_generation)
