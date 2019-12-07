@@ -139,10 +139,11 @@ if __name__ == "__main__":
     pop_dicts = []
     for i in range(num_generation):
         pop_dict = generation(population, resultDict, mpiWorld, pbars, args)
-        if mpiWorld.isMaster() and not args.exp:
+        if mpiWorld.isMaster():
             population = pop_dict['selection']
             pop_dicts.append(pop_dict)
-            pbars['search'].update()
+            if not args.exp:
+                pbars['search'].update()
         else:
             population = None
     mpiWorld.comm.Barrier()

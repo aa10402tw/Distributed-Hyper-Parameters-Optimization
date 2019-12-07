@@ -1,6 +1,6 @@
 # Exp (12/06)
 cuda_mpiexec_4 train_cifar10_evolution_search.py --n_gen=9 --pop_size=8 --num_epochs=20 --exp=True
 cuda_mpiexec_4 train_cifar10_random_search.py --n_search=80 --num_epochs=20 --exp=True
-cuda_mpiexec_4 train_cifar10_grid_search.py --grid_size=9 --num_epochs=29 --DEBUG=True
+cuda_mpiexec_4 train_cifar10_grid_search.py --grid_size=9 --num_epochs=20 --DEBUG=True
 
 
