@@ -18,11 +18,11 @@ import glob
 from hyperparams import *
 
 DEBUG = False
-bs_default = 256
-mmt_default = 0.0
-dr_default = 0.0
 lr_default = 0.1
-num_epochs = 1
+dr_default = 0.0
+mmt_default = 0.0
+bs_default = 512
+ne_default = 3
 
 # === Training CNN === #
 class Net(nn.Module):
@@ -97,6 +97,7 @@ def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
     mmt = mmt_default
     dr = dr_default
     lr = lr_default
+    ne = ne_default
 
     for rv in hparams:
         if rv.name == LEARNING_RATE_NAME:
@@ -107,6 +108,8 @@ def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
             mmt = rv.value
         elif rv.name == BATCH_SIZE_NAME:
             bs = rv.value
+        elif rv.name == NUM_EPOCHS_NAME:
+            ne = rv.value
 
     if pbars is not None:
         pbar_train = pbars['train']
@@ -118,38 +121,33 @@ def train_mnist(hparams, device=None, pbars=None, DEBUG=False):
     # Reproducibitity
     torch.manual_seed(0)
     torch.cuda.manual_seed_all(0)
-    # np.random.seed(0)
-    # random.seed(0)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
      # Init Network
     net = Net(dropout_rate=dr)
-    #net.load_state_dict(torch.load("MnistNet.pth"))
     net.to(device)
 
     # Data Loader
     train_loader = get_train_loader(bs)
-    val_loader = get_val_loader(bs)
+    val_loader   = get_val_loader(bs)
 
     # Hyper-Parameters
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=mmt)
-    # optimizer = optim.Adam(net.parameters(), lr=lr)
     criterion = nn.CrossEntropyLoss()
 
+    num_epochs = ne
     for epoch in range(1, num_epochs+1):
         # Train
         if pbar_train is not None:
-            pbar_train.set_description("[lr={:.4f}, dr={:.4f}] Train ({}/{})".format(
-                lr, dr, epoch, num_epochs))
+            pbar_train.set_description("Train ({}/{})".format(epoch, num_epochs))
         train_acc = train(net, train_loader, optimizer, criterion, 
             device, pbar_train, DEBUG=DEBUG)
-        # Test
-        if pbar_test is not None:
-            pbar_test.set_description( "[lr={:.4f}, dr={:.4f}] Test  ({}/{})".format(
-                lr, dr, epoch, num_epochs))
-        test_acc = test(net, val_loader, criterion, 
-            device, pbar_test, DEBUG=DEBUG)
+    # Test
+    if pbar_test is not None:
+        pbar_test.set_description("Test")
+    test_acc = test(net, val_loader, criterion, 
+        device, pbar_test, DEBUG=DEBUG)
 
     return test_acc
 
@@ -319,9 +317,14 @@ def vis_search(hyperparams, result=None, save_name=""):
             ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
         plt.savefig('{}_3D_vis.png'.format(save_name))
 
+def check_dir(save_path):
+    file_name = os.path.basename(save_path)
+    save_dir = save_path.split(file_name)[0]
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
 def write_log(logs, save_name="result/random"):
-    if not os.path.exists("result"):
-        os.makedirs("result")
+    check_dir(save_name)
     save_dict = {"log":logs}
     save_name += ".pickle"
     with open(save_name, 'wb') as file:
@@ -341,3 +344,13 @@ def flatten(list_2d):
     for l in list_2d:
         list_1d += l
     return list_1d
+
+def write_time_log(time_elapsed, acc, save_name):
+    check_dir(save_name)
+    if os.path.isfile(save_name):
+        with open(save_name, "a+") as f:
+            f.write("{:.4f},{:.4f}\n".format(time_elapsed, acc))
+    else:
+        with open(save_name, "w+") as f:
+            f.write("{},{}\n".format("time_elapsed", "acc"))
+            f.write("{:.4f},{:.4f}\n".format(time_elapsed, acc))
