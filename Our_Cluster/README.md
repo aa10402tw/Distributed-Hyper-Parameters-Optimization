@@ -10,10 +10,10 @@
 	cd ~/nfs/Distributed-Hyper-Parameters-Optimization/Our_Cluster
 
 ## Comparsion Between Search Methods
-	mpiexec.mpich -hostfile hostfile_3 python3 search_comparsion.py 
---grid_size=0 to skip grid_search, 
---n_random_search=0 to skip random_search,
---n_gen=0 to skip evoluation_search,
+	mpiexec.mpich -hostfile hostfile_3 python3 search_comparsion.py --exp=True
+--grid_size=0 to skip grid_search
+--n_random_search=0 to skip random_search
+--n_gen=0 to skip evoluation_search
 
 ## Comparsion Between Different Number of Nodes
 
