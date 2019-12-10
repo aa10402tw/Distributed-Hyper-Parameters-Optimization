@@ -20,7 +20,7 @@ from grid_search_utils      import *
 from random_search_utils    import *
 from evolution_search_utils import *
 
-device = torch.device("cpu")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def initPbars_(mpiWorld, exp=False):
     if exp:
