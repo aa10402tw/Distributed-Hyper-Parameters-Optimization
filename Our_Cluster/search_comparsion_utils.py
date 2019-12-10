@@ -237,7 +237,7 @@ def evoluation_search(mpiWorld, args):
 
     resultDict = {}
     # === Start Search === #
-    pop_dicts = []
+    termination_time = float("inf")
     TERMINATION = False
     for i in range(num_generation+1):
         # At First generation, evaluate population directly
@@ -259,6 +259,8 @@ def evoluation_search(mpiWorld, args):
         TERMINATION = mpiWorld.comm.bcast(TERMINATION, root=mpiWorld.MASTER_RANK)
         if TERMINATION:
             break
+        if mpiWorld.isMaster() and not args.exp:
+            pbars['search'].update()
     closePbars(pbars)
 
     termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
