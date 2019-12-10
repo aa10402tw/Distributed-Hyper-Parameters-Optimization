@@ -42,30 +42,32 @@ if __name__ == "__main__":
     
     for i in range(args.n_comparsion):
         # Grid Search 
-        start = time.time()
-        acc_grid = grid_search(mpiWorld, args)
-        end = time.time()
-        time_elapsed_grid = end-start
-        if mpiWorld.isMaster() and args.exp:
-            print("time_elapsed_grid:", time_elapsed_grid, "acc:", acc_grid)
+        if args.grid_size > 0:
+            start = time.time()
+            acc_grid = grid_search(mpiWorld, args)
+            end = time.time()
+            time_elapsed_grid = end-start
+            if mpiWorld.isMaster() and args.exp:
+                print("time_elapsed_grid:", time_elapsed_grid, "acc:", acc_grid)
+                write_time_log(time_elapsed_grid, acc_grid, SAVE_NAME_GRID)
 
         # Random Search
-        start = time.time()
-        acc_ran = random_search(mpiWorld, args)
-        end = time.time()
-        time_elapsed_ran = end-start
-        if mpiWorld.isMaster() and args.exp:
-            print("time_elapsed_random:", time_elapsed_ran, "acc:", acc_ran)
+        if args.n_random_search > 0:
+            start = time.time()
+            acc_ran = random_search(mpiWorld, args)
+            end = time.time()
+            time_elapsed_ran = end-start
+            if mpiWorld.isMaster() and args.exp:
+                print("time_elapsed_random:", time_elapsed_ran, "acc:", acc_ran)
+                write_time_log(time_elapsed_ran,  acc_ran,  SAVE_NAME_RANDOM)
 
         # Evoluation Search
-        start = time.time()
-        acc_evo = evoluation_search(mpiWorld, args)
-        end = time.time()
-        time_elapsed_evo = end-start
-        if mpiWorld.isMaster() and args.exp:
-            print("time_elapsed_evoluation:", time_elapsed_evo, "acc:", acc_evo)
-
-        if mpiWorld.isMaster():
-            write_time_log(time_elapsed_grid, acc_grid, SAVE_NAME_GRID)
-            write_time_log(time_elapsed_ran,  acc_ran,  SAVE_NAME_RANDOM)
-            write_time_log(time_elapsed_evo,  acc_evo,  SAVE_NAME_EVOLUATION)
+        if args.n_gen > 0:
+            start = time.time()
+            acc_evo = evoluation_search(mpiWorld, args)
+            end = time.time()
+            time_elapsed_evo = end-start
+            if mpiWorld.isMaster() and args.exp:
+                print("time_elapsed_evoluation:", time_elapsed_evo, "acc:", acc_evo)
+                write_time_log(time_elapsed_evo,  acc_evo,  SAVE_NAME_EVOLUATION)
+            
