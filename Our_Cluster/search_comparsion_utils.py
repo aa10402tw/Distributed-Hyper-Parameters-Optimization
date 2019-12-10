@@ -26,8 +26,8 @@ def initPbars_(mpiWorld, exp=False):
     if exp:
         return {"search":None, "train":None, "test":None}
     else:
-        print("=== [Progress Bars] ===")
         if mpiWorld.isMaster():
+            print("=== [Progress Bars] ===")
             return {"search":tqdm(), "train":tqdm(), "test":tqdm()}
         else:
             return {"search":None, "train":None, "test":None}
@@ -44,6 +44,7 @@ def get_num_search_local(mpiWorld, num_search_global):
     return int(end_idx) - int(start_idx)
 
 def random_search(mpiWorld, args):
+    start = time.time()
     # === Init Search Grid === #
     c = 1e-4
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
@@ -83,6 +84,7 @@ def random_search(mpiWorld, args):
 
         # Test Temination Criteria and Do Synchronization
         if get_best_acc(resultDict) >= args.criteria:
+            termination_time = time.time()
             TERMINATION = True
         TERMINATION = mpiWorld.comm.bcast(TERMINATION, root=mpiWorld.MASTER_RANK)
         if TERMINATION:
@@ -95,7 +97,11 @@ def random_search(mpiWorld, args):
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
     mpiWorld.comm.Barrier()
     closePbars(pbars)
-    return get_best_acc(resultDict)
+
+    termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
+    end = min(termination_time, time.time())
+    time_elapsed = end-start
+    return time_elapsed, get_best_acc(resultDict)
 
 #######################
 ##### Grid Search ##### 
@@ -110,6 +116,7 @@ def getIdxes(mpiWorld, gridSearch):
     return idxes
 
 def grid_search(mpiWorld, args):
+    start = time.time()
     # === Init Search Grid === #
     lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
     dr  = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME ).to_DRV(args.grid_size)
@@ -132,6 +139,7 @@ def grid_search(mpiWorld, args):
     mpiWorld.comm.Barrier()
 
     # === Start Search === #
+    termination_time = float("inf")
     TERMINATION = False
     for idx in local_idxes:
         # Get Hyper-Parameters
@@ -146,6 +154,7 @@ def grid_search(mpiWorld, args):
 
         # Test Temination Criteria and Do Synchronization
         if get_best_acc(resultDict) >= args.criteria:
+            termination_time = time.time()
             TERMINATION = True
         TERMINATION = mpiWorld.comm.bcast(TERMINATION, root=mpiWorld.MASTER_RANK)
         if TERMINATION:
@@ -159,13 +168,18 @@ def grid_search(mpiWorld, args):
     resultDict = syncData(resultDict, mpiWorld, blocking=True)
     mpiWorld.comm.Barrier()
     closePbars(pbars)
-    return get_best_acc(resultDict)
+
+    termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
+    end = min(termination_time, time.time())
+    time_elapsed = end-start
+    return time_elapsed, get_best_acc(resultDict)
 
 
 #############################
 ##### Evoluation Search ##### 
 #############################
 def evaluate_popuation(population, mpiWorld, pbars, args):
+    termination_time = float("inf")
     # Scatter Population
     local_populations = []
     if mpiWorld.isMaster():
@@ -178,7 +192,6 @@ def evaluate_popuation(population, mpiWorld, pbars, args):
     local_population = mpiWorld.comm.scatter(local_populations, root=mpiWorld.MASTER_RANK)
 
     # Evaluate local_population
-    TERMINATION = False
     local_fitness = []
     for i, hparams in enumerate(local_population):
         if mpiWorld.isMaster() and not args.exp:
@@ -189,53 +202,16 @@ def evaluate_popuation(population, mpiWorld, pbars, args):
         acc = train_mnist(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         local_fitness.append(acc)
 
-        if acc > args.criteria:
-            TERMINATION = True
-        TERMINATION = mpiWorld.comm.allreduce(TERMINATION, op=MPI.LOR)
-        if TERMINATION: 
-            local_population = local_population[:len(local_fitness)]
-            break
+        if acc >= args.criteria:
+            termination_time = time.time()
     # Gather Fitness
     population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
     fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
-
-    return flatten(population_gather), flatten(fitness_gather)
-
-def generation(pop_start, resultDict, mpiWorld, pbars, args):
-    pop_dict = {}
-    uneval_pop = None
-    if mpiWorld.isMaster():
-        pop_dict['start'] = pop_start
-        population_size = len(pop_start)
-
-        # Make Child (Crossover & Mutation)
-        pop_child = make_child(pop_start, population_size)
-        pop_dict['child'] = pop_child
-
-        population = pop_start + pop_child
-
-        # Get unevaluated population
-        uneval_pop = get_unevaluated_population(population, resultDict)
-
-    # Evaluation
-    uneval_pop, uneval_fitness = evaluate_popuation(uneval_pop, mpiWorld, pbars, args)
-    if mpiWorld.isMaster():
-        # Update resultDict
-        for hps, acc in zip(uneval_pop, uneval_fitness):
-            if hps not in resultDict:
-                resultDict[hps] = acc
-        # Select Best
-        fitness = []
-        for hps in population:
-            fitness.append(resultDict[hps])
-        sort_idx  = np.argsort(fitness)
-        fitness = [fitness[i] for i in sort_idx]
-        population = [population[i] for i in sort_idx]
-        pop_dict['selection'] = population[-population_size:][::-1]
-    return pop_dict
-
+    termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
+    return flatten(population_gather), flatten(fitness_gather), termination_time
 
 def evoluation_search(mpiWorld, args):
+    start = time.time()
     # === Init Search Grid === #
     c = 1e-4
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
@@ -272,16 +248,20 @@ def evoluation_search(mpiWorld, args):
             if mpiWorld.isMaster():
                 pop_child = make_child(population, args.pop_size)
                 uneval_pop = get_unevaluated_population(pop_child, resultDict)
-        
-        pop, fit = evaluate_popuation(uneval_pop, mpiWorld, pbars, args)
+        pop, fit, ter_time = evaluate_popuation(uneval_pop, mpiWorld, pbars, args)
         # Update Result Dict
         if mpiWorld.isMaster():
             for hps, acc in zip(pop, fit):
                 resultDict[hps] = acc
             if get_best_acc(resultDict) >= args.criteria:
+                termination_time = ter_time
                 TERMINATION = True
         TERMINATION = mpiWorld.comm.bcast(TERMINATION, root=mpiWorld.MASTER_RANK)
         if TERMINATION:
             break
     closePbars(pbars)
-    return get_best_acc(resultDict)
+
+    termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
+    end = min(termination_time, time.time())
+    time_elapsed = end-start
+    return time_elapsed, get_best_acc(resultDict)
