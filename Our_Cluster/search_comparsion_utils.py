@@ -66,6 +66,7 @@ def random_search(mpiWorld, args):
     resultDict = {}
 
     # === Start Search === #
+    termination_time = float('inf')
     TERMINATION = False
     for i in range(num_search_local):
         # Get Hyper-Parameters
@@ -99,7 +100,9 @@ def random_search(mpiWorld, args):
     closePbars(pbars)
 
     termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
-    end = min(termination_time, time.time())
+    end = time.time()
+    if mpiWorld.isMaster():
+        end = min(termination_time, end)
     time_elapsed = end-start
     return time_elapsed, get_best_acc(resultDict)
 
@@ -170,7 +173,9 @@ def grid_search(mpiWorld, args):
     closePbars(pbars)
 
     termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
-    end = min(termination_time, time.time())
+    end = time.time()
+    if mpiWorld.isMaster():
+        end = min(termination_time, end)
     time_elapsed = end-start
     return time_elapsed, get_best_acc(resultDict)
 
@@ -259,11 +264,13 @@ def evoluation_search(mpiWorld, args):
         TERMINATION = mpiWorld.comm.bcast(TERMINATION, root=mpiWorld.MASTER_RANK)
         if TERMINATION:
             break
-        if mpiWorld.isMaster() and not args.exp:
+        if i>0 and mpiWorld.isMaster() and not args.exp:
             pbars['search'].update()
     closePbars(pbars)
 
     termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
-    end = min(termination_time, time.time())
+    end = time.time()
+    if mpiWorld.isMaster():
+        end = min(termination_time, end)
     time_elapsed = end-start
     return time_elapsed, get_best_acc(resultDict)

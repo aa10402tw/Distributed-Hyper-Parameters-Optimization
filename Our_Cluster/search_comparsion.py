@@ -45,20 +45,23 @@ if __name__ == "__main__":
         if args.grid_size > 0:
             time_elapsed_grid, acc_grid = grid_search(mpiWorld, args)
             if mpiWorld.isMaster() and args.exp:
-                print("time_elapsed_grid:", time_elapsed_grid, "acc:", acc_grid)
+                print("{:^25}:{:^15}, {:^5}:{:^15}".format(
+                    "time_elapsed_grid", "%.4f"%time_elapsed_grid, "acc", "%.4f"%acc_grid))
                 write_time_log(time_elapsed_grid, acc_grid, SAVE_NAME_GRID)
 
         # Random Search
         if args.n_random_search > 0:
             time_elapsed_ran, acc_ran = random_search(mpiWorld, args)
             if mpiWorld.isMaster() and args.exp:
-                print("time_elapsed_random:", time_elapsed_ran, "acc:", acc_ran)
+                print("{:^25}:{:^15}, {:^5}:{:^15}".format(
+                    "time_elapsed_random", "%.4f"%time_elapsed_ran, "acc", "%.4f"%acc_ran))
                 write_time_log(time_elapsed_ran,  acc_ran,  SAVE_NAME_RANDOM)
 
         # Evoluation Search
         if args.n_gen > 0:
             time_elapsed_evo, acc_evo = evoluation_search(mpiWorld, args)
             if mpiWorld.isMaster() and args.exp:
-                print("time_elapsed_evoluation:", time_elapsed_evo, "acc:", acc_evo)
+                print("{:^25}:{:^15}, {:^5}:{:^15}".format(
+                    "time_elapsed_evoluation", "%.4f"%time_elapsed_evo, "acc", "%.4f"%acc_evo))
                 write_time_log(time_elapsed_evo,  acc_evo,  SAVE_NAME_EVOLUATION)
             
