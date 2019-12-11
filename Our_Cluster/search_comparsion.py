@@ -60,7 +60,7 @@ if __name__ == "__main__":
         # Evoluation Search
         if args.n_gen > 0:
             time_elapsed_evo, acc_evo = evoluation_search(mpiWorld, args)
-            if mpiWorld.isMaster()e :
+            if mpiWorld.isMaster():
                 print("{:^25}:{:^15}, {:^5}:{:^15}".format(
                     "time_elapsed_evoluation", "%.4f"%time_elapsed_evo, "acc", "%.4f"%acc_evo))
                 write_time_log(time_elapsed_evo,  acc_evo,  SAVE_NAME_EVOLUATION)
