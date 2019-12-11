@@ -47,7 +47,7 @@ def random_search(mpiWorld, args):
     start = time.time()
     # === Init Search Grid === #
     c = 1e-4
-    lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    lr  = CRV(low=0.0+c, high=0.1-c, name=LEARNING_RATE_NAME)
     dr  = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, dr, mmt])
@@ -121,7 +121,7 @@ def getIdxes(mpiWorld, gridSearch):
 def grid_search(mpiWorld, args):
     start = time.time()
     # === Init Search Grid === #
-    lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
+    lr  = CRV(low=0.0, high=0.1, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
     dr  = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME ).to_DRV(args.grid_size)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME).to_DRV(args.grid_size)
     hparams = HyperParams([lr, dr, mmt])
@@ -219,7 +219,7 @@ def evoluation_search(mpiWorld, args):
     start = time.time()
     # === Init Search Grid === #
     c = 1e-4
-    lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    lr  = CRV(low=0.0+c, high=0.1-c, name=LEARNING_RATE_NAME)
     dr  = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
     hparams = HyperParams([lr, dr, mmt])
