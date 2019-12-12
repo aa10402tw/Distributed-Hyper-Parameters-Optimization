@@ -166,7 +166,7 @@ def get_val_loader(batch_size):
         datasets.MNIST('./data', train=False, transform=transforms.Compose([
                        transforms.ToTensor(),
                        transforms.Normalize((0.1307,), (0.3081,))
-   ])), batch_size=batch_size, shuffle=True)
+   ])), batch_size=batch_size, shuffle=False)
     return test_loader
 
 def check_dataset():

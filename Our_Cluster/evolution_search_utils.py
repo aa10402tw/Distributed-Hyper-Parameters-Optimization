@@ -23,7 +23,7 @@ def make_child(population, n_child):
     child = []
     new_pop = population + child
     while(len(new_pop) - len(population) < n_child):
-        child += crossover(population)
+        # child += crossover(population)
         child += mutation(population)
         new_pop = new_pop + child
         new_pop = list(set(new_pop))

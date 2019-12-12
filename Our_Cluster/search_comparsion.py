@@ -1,5 +1,9 @@
 from search_comparsion_utils import *
 
+SAVE_NAME_GRID       = "result/search_comparsion/time_grid.txt"
+SAVE_NAME_RANDOM     = "result/search_comparsion/time_random.txt"
+SAVE_NAME_EVOLUATION = "result/search_comparsion/time_evoluation.txt"
+
 if __name__ == "__main__":
     start = time.time()
 
@@ -35,10 +39,6 @@ if __name__ == "__main__":
     if mpiWorld.isMaster():
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
-
-    SAVE_NAME_GRID       = "result/search_comparsion/time_grid.txt"
-    SAVE_NAME_RANDOM     = "result/search_comparsion/time_random.txt"
-    SAVE_NAME_EVOLUATION = "result/search_comparsion/time_evoluation.txt"
     
     for i in range(args.n_comparsion):
         # Grid Search 
