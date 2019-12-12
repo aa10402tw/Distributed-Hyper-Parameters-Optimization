@@ -9,14 +9,16 @@
 	mv ~/nfs/data ~/nfs/Distributed-Hyper-Parameters-Optimization/Our_Cluster
 	cd ~/nfs/Distributed-Hyper-Parameters-Optimization/Our_Cluster
 
-## Comparsion Between Search Methods
-	mpiexec.mpich -hostfile hostfile_3 python3 search_comparsion.py --exp=True
---grid_size=0 to skip grid_search
---n_random_search=0 to skip random_search
---n_gen=0 to skip evoluation_search
+# Comparsion Between Search Methods
+### Accuracy (Same number of hyper-parameters evaluated)
+	mpiexec.mpich -hostfile hostfile_3 python3 acc_benchmark.py --n_comparsion=1
+### Termination Time (Reach given criteria)
+	mpiexec.mpich -hostfile hostfile_3 python3 time_benchmark.py --TIME_LIMIT=1200 --n_comparsion=1 
+### See the result 
+	python3 result/vis_result.py
+
 
 ## Comparsion Between Different Number of Nodes
-
 ### Grid Search
 	mpiexec.mpich -hostfile hostfile_1 python3 train_mnist_grid_search.py --grid_size=10 
 	mpiexec.mpich -hostfile hostfile_3 python3 train_mnist_grid_search.py --grid_size=10 

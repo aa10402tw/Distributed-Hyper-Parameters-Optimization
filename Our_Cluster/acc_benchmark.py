@@ -92,6 +92,9 @@ def getIdxes(mpiWorld, allIdx):
     world_size = mpiWorld.world_size
     my_rank = mpiWorld.my_rank
     total = len(allIdx)
+    if total % world_size != 0:
+        raise Exception("Grid Search Total {} is not divideable by numbers of nodes {}".format(
+            total, world_size))
     start_idx = my_rank * (total/world_size) if my_rank != 0 else 0
     end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
     idxes = allIdx[int(start_idx):int(end_idx)]
@@ -129,7 +132,7 @@ def grid_search(mpiWorld, args):
     mpiWorld.comm.barrier()
     # === Start Search === #
     best_acc = 0.0
-    for idx in idxes:
+    for i, idx in enumerate(idxes):
         # Get Hyper-Parameters
         hparams = gridSearch[idx]
 
@@ -139,7 +142,8 @@ def grid_search(mpiWorld, args):
 
         # Sync Data
         resultDict[hparams] = test_acc
-        resultDict = syncData(resultDict, mpiWorld, blocking=True)
+        if i < len(idxes)-1:
+            resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
         # Log 
         if DETAIL_LOG:
@@ -151,10 +155,10 @@ def grid_search(mpiWorld, args):
             if mpiWorld.isMaster():
                 for log in logs:
                     print(log)
-        if mpiWorld.isMaster():
-            if get_best_acc(resultDict) > best_acc:
-                best_acc = get_best_acc(resultDict)
-                print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+        # if mpiWorld.isMaster():
+        #     if get_best_acc(resultDict) > best_acc:
+        #         best_acc = get_best_acc(resultDict)
+        #         print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
     if DETAIL_LOG and mpiWorld.isMaster():
         print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
@@ -171,6 +175,9 @@ def get_num_search_local(mpiWorld, num_search_global):
     world_size = mpiWorld.world_size
     my_rank = mpiWorld.my_rank
     total = num_search_global
+    if total % world_size != 0:
+        raise Exception("Random Search Total {} is not divideable by numbers of nodes {}".format(
+            total, world_size))
     start_idx = my_rank * (total/world_size) if my_rank != 0 else 0
     end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
     return int(end_idx) - int(start_idx)
@@ -281,11 +288,12 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
             log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
                 mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%dr, "%.4f"%mmt, bs, "%.2f"%acc)
             logs.append(log)
+    mpiWorld.comm.barrier()
     if DETAIL_LOG:
         logs_gather = mpiWorld.comm.gather(logs, root=mpiWorld.MASTER_RANK)
         if mpiWorld.isMaster():
-            for log in flatten(logs_gather):
-                print(log)
+            for logs in flatten(logs_gather):
+                print(logs)
     population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
     fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
     return flatten(population_gather), flatten(fitness_gather)
@@ -343,8 +351,6 @@ def evo_search(mpiWorld, args):
         else:
             print("[Evo Search]")
     pbars = {"search":None, "train":None, "test":None}
-    resultDict = {}
-
     # Print Table   
     if DETAIL_LOG and mpiWorld.isMaster():
         title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
@@ -353,8 +359,10 @@ def evo_search(mpiWorld, args):
         print(title)
         print("="*(len(title)))
     # === Start Search === #
+    resultDict = {}
     pop_dicts = []
     best_acc = 0.0
+    mpiWorld.comm.Barrier()
     for i in range(0, num_generation+1):
         if DETAIL_LOG and mpiWorld.isMaster():
             gen_text = "(Generation : {})".format(i)
@@ -407,7 +415,7 @@ if __name__ == "__main__":
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("--DEBUG", default=False)
-    parser.add_argument("--n_comparsion", default=1, type=int)
+    parser.add_argument("--n_comparsion", default=10, type=int)
     parser.add_argument("--grid_size", default=4, type=int)
     parser.add_argument("--n_search", default=64, type=int)
     parser.add_argument("--n_gen", default=16-1, type=int)
@@ -419,6 +427,10 @@ if __name__ == "__main__":
     if mpiWorld.isMaster():
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
+    if args.pop_size % mpiWorld.world_size != 0:
+        raise Exception("Evoluation Search Pop_size {} is not divideable by numbers of nodes {}".format(
+            args.pop_size, mpiWorld.world_size))
+
     np.set_printoptions(precision=2)
 
     GRID_ACC_NAME = "result/acc_grid_search.txt" 
