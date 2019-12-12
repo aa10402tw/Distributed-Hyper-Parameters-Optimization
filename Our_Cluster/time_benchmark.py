@@ -160,7 +160,8 @@ def grid_search(mpiWorld, args):
         if mpiWorld.isMaster():
             if get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
-                print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+                print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                    best_acc, len(resultDict), time.time()-start))
             # Test Temination Criteria and Do Synchronization
             if get_best_acc(resultDict) >= args.criteria:
                 termination_time = time.time()
@@ -260,7 +261,8 @@ def ran_search(mpiWorld, args):
         if mpiWorld.isMaster():
             if get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
-                print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+                print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                    best_acc, len(resultDict), time.time()-start))
             # Test Temination Criteria and Do Synchronization
             if get_best_acc(resultDict) >= args.criteria:
                 termination_time = time.time()
@@ -423,7 +425,8 @@ def evo_search(mpiWorld, args):
             elif get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
                 if not DETAIL_LOG:
-                   print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+                   print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                    best_acc, len(resultDict), time.time()-start))
             # Check Termination Criteria
             if get_best_acc(resultDict) >= args.criteria:
                 termination_time = ter_time

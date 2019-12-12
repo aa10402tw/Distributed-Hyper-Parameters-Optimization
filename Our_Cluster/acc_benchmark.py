@@ -155,10 +155,11 @@ def grid_search(mpiWorld, args):
             if mpiWorld.isMaster():
                 for log in logs:
                     print(log)
-        # if mpiWorld.isMaster():
-        #     if get_best_acc(resultDict) > best_acc:
-        #         best_acc = get_best_acc(resultDict)
-        #         print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+        if mpiWorld.isMaster():
+            if get_best_acc(resultDict) > best_acc:
+                best_acc = get_best_acc(resultDict)
+                print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                    best_acc, len(resultDict), time.time()-start))
     if DETAIL_LOG and mpiWorld.isMaster():
         print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
@@ -243,7 +244,8 @@ def ran_search(mpiWorld, args):
         if mpiWorld.isMaster():
             if get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
-                print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+                print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                    best_acc, len(resultDict), time.time()-start))
     if DETAIL_LOG and mpiWorld.isMaster():
         print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
@@ -391,7 +393,8 @@ def evo_search(mpiWorld, args):
             elif get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
                 if not DETAIL_LOG:
-                   print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
+                   print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                    best_acc, len(resultDict), time.time()-start))
     if DETAIL_LOG and mpiWorld.isMaster():
         print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
