@@ -160,7 +160,7 @@ def grid_search(mpiWorld, args):
         if mpiWorld.isMaster():
             if get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
-                print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
                     best_acc, len(resultDict), time.time()-start))
             # Test Temination Criteria and Do Synchronization
             if get_best_acc(resultDict) >= args.criteria:
@@ -180,6 +180,8 @@ def grid_search(mpiWorld, args):
     end = time.time()
     if mpiWorld.isMaster():
         end = min(termination_time, end)
+        print("\tMinimum Time:{:.2f}, Best Acc:{:.2f}, #HyperParams:{}".format(
+            end-start, get_best_acc(resultDict), len(resultDict)))
     time_elapsed = end-start
     return time_elapsed, get_best_acc(resultDict)
 
@@ -261,7 +263,7 @@ def ran_search(mpiWorld, args):
         if mpiWorld.isMaster():
             if get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
-                print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
                     best_acc, len(resultDict), time.time()-start))
             # Test Temination Criteria and Do Synchronization
             if get_best_acc(resultDict) >= args.criteria:
@@ -281,6 +283,8 @@ def ran_search(mpiWorld, args):
     end = time.time()
     if mpiWorld.isMaster():
         end = min(termination_time, end)
+        print("\tMinimum Time:{:.2f}, Best Acc:{:.2f}, #HyperParams:{}".format(
+            end-start, get_best_acc(resultDict), len(resultDict)))
     time_elapsed = end-start
     return time_elapsed, get_best_acc(resultDict)
 
@@ -425,7 +429,7 @@ def evo_search(mpiWorld, args):
             elif get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
                 if not DETAIL_LOG:
-                   print("Cur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                   print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
                     best_acc, len(resultDict), time.time()-start))
             # Check Termination Criteria
             if get_best_acc(resultDict) >= args.criteria:
@@ -445,6 +449,8 @@ def evo_search(mpiWorld, args):
     end = time.time()
     if mpiWorld.isMaster():
         end = min(termination_time, end)
+        print("\tMinimum Time:{:.2f}, Best Acc:{:.2f}, #HyperParams:{}".format(
+            end-start, get_best_acc(resultDict), len(resultDict)))
     time_elapsed = end-start
     return time_elapsed, get_best_acc(resultDict)
 
