@@ -412,7 +412,7 @@ def evo_search(mpiWorld, args):
             elif get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
                 if not DETAIL_LOG:
-                   print("{:.2f}({})".format(best_acc, len(resultDict)))
+                   print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
             # Check Termination Criteria
             if get_best_acc(resultDict) >= args.criteria:
                 termination_time = ter_time

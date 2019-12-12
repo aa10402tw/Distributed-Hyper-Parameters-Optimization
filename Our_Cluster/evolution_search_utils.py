@@ -62,7 +62,7 @@ def mutation(population, prob_mutation=0.2):
                     new_rvs.append(rv_new)
                 if isinstance(rv, DRV):
                     rv_new = rv.copy()
-                    rv_new.value = random.choices(rv.choices)[0]
+                    rv_new.value = random.sample(rv.choices, 1)[0]
                     new_rvs.append(rv_new)
             else:
                 new_rvs.append(rv.copy())
