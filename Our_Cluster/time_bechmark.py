@@ -303,11 +303,11 @@ def evaluate_popuation(mpiWorld, population, pbars, args):
 
     # Evaluate local_population
     local_fitness = []
+    logs = []
     for i, hparams in enumerate(local_population):
         # Train MNIST
         train_acc, acc = train_mnist_(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         local_fitness.append(acc)
-        logs = []
         if DETAIL_LOG:
             lr, dr, mmt, bs = hparams.getValueTuple()
             cnt = i* mpiWorld.world_size + mpiWorld.my_rank

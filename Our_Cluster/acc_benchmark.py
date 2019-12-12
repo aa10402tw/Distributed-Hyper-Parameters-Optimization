@@ -270,6 +270,7 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
 
     # Evaluate local_population
     local_fitness = []
+    logs = []
     for i, hparams in enumerate(local_population):
         # Train MNIST
         train_acc, acc = train_mnist_(hparams, device=device, pbars=pbars, DEBUG=DEBUG)
@@ -279,10 +280,12 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
             cnt = i* mpiWorld.world_size + mpiWorld.my_rank
             log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
                 mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%dr, "%.4f"%mmt, bs, "%.2f"%acc)
-            logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
-            if mpiWorld.isMaster():
-                for log in logs:
-                    print(log)
+            logs.append(log)
+    if DETAIL_LOG:
+        logs_gather = mpiWorld.comm.gather(logs, root=mpiWorld.MASTER_RANK)
+        if mpiWorld.isMaster():
+            for log in flatten(logs_gather):
+                print(log)
     population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
     fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
     return flatten(population_gather), flatten(fitness_gather)
@@ -380,7 +383,7 @@ def evo_search(mpiWorld, args):
             elif get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
                 if not DETAIL_LOG:
-                   print("{:.2f}({})".format(best_acc, len(resultDict)))
+                   print("Cur Best:{:.2f}({})".format(best_acc, len(resultDict)))
     if DETAIL_LOG and mpiWorld.isMaster():
         print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
@@ -403,12 +406,12 @@ if __name__ == "__main__":
 
     # === Argument === #
     parser = ArgumentParser()
-    parser.add_argument("--DEBUG",  default=False)
-    parser.add_argument("--n_comparsion",  default=10)
-    parser.add_argument("--grid_size",  default=10, type=int)
-    parser.add_argument("--n_search",  default=100, type=int)
-    parser.add_argument("--n_gen",  default=25-1, type=int)
-    parser.add_argument("--pop_size",  default=4, type=int)
+    parser.add_argument("--DEBUG", default=False)
+    parser.add_argument("--n_comparsion", default=1, type=int)
+    parser.add_argument("--grid_size", default=4, type=int)
+    parser.add_argument("--n_search", default=64, type=int)
+    parser.add_argument("--n_gen", default=16-1, type=int)
+    parser.add_argument("--pop_size", default=4, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
     if args.DEBUG:
