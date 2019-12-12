@@ -404,6 +404,7 @@ if __name__ == "__main__":
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("--DEBUG",  default=False)
+    parser.add_argument("--n_comparsion",  default=10)
     parser.add_argument("--grid_size",  default=10, type=int)
     parser.add_argument("--n_search",  default=100, type=int)
     parser.add_argument("--n_gen",  default=25-1, type=int)
@@ -421,9 +422,9 @@ if __name__ == "__main__":
     RAN_ACC_NAME  = "result/acc_ran_search.txt"
     EVO_ACC_NAME  = "result/acc_evo_search.txt"
 
-    for i in range(10):
+    for i in range(args.n_comparsion):
         if mpiWorld.isMaster():
-            print("~~~ Acc Comparsion {} ~~~".format(i+1))
+            print("~~~ Acc Comparsion {}/{} ~~~".format(i+1, args.n_comparsion))
 
         # Grid Search
         time_elapsed, best_acc = grid_search(mpiWorld, args)
