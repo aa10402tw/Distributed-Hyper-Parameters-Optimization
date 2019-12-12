@@ -298,6 +298,7 @@ def evaluate_popuation(mpiWorld, population, pbars, args):
             s = (rank)   * (total/world_size) if rank != 0            else 0
             e = (rank+1) * (total/world_size) if rank != world_size-1 else total
             local_populations.append(population[int(s):int(e)])
+
     local_population = mpiWorld.comm.scatter(local_populations, root=mpiWorld.MASTER_RANK)
 
     # Evaluate local_population
@@ -306,18 +307,21 @@ def evaluate_popuation(mpiWorld, population, pbars, args):
         # Train MNIST
         train_acc, acc = train_mnist_(hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         local_fitness.append(acc)
+        logs = []
         if DETAIL_LOG:
             lr, dr, mmt, bs = hparams.getValueTuple()
             cnt = i* mpiWorld.world_size + mpiWorld.my_rank
             log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
                 mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%dr, "%.4f"%mmt, bs, "%.2f"%acc)
-            logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
-            if mpiWorld.isMaster():
-                for log in logs:
-                    print(log)
+            logs.append(log)
         # Check Termination Criteria Criteria
         if acc >= args.criteria:
             termination_time = min(termination_time, time.time())
+    if DETAIL_LOG:
+        logs_gather = mpiWorld.comm.gather(logs, root=mpiWorld.MASTER_RANK)
+        if mpiWorld.isMaster():
+            for log in flatten(logs_gather):
+                print(log)
     population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
     fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
     termination_time  = mpiWorld.comm.reduce(termination_time, op=MPI.MIN, root=mpiWorld.MASTER_RANK)
@@ -346,6 +350,7 @@ def generation(mpiWorld, pop_start, resultDict, pbars, args):
                 resultDict[hps] = acc
         # Select Best
         fitness = []
+        population = pop_dict['start'] + pop_dict['child']
         for hps in population:
             fitness.append(resultDict[hps])
         sort_idx  = np.argsort(fitness)
@@ -473,15 +478,15 @@ if __name__ == "__main__":
         if mpiWorld.isMaster():
             print("~~~ Acc Comparsion {}/{} ~~~".format(i+1, args.n_comparsion))
 
-        # Grid Search
-        time_elapsed, best_acc = grid_search(mpiWorld, args)
-        if mpiWorld.isMaster():
-            write_time_log_file(time_elapsed, best_acc, file_name=GRID_TIME_NAME)
+        # # Grid Search
+        # time_elapsed, best_acc = grid_search(mpiWorld, args)
+        # if mpiWorld.isMaster():
+        #     write_time_log_file(time_elapsed, best_acc, file_name=GRID_TIME_NAME)
 
-        # Random Search 
-        time_elapsed, best_acc = ran_search(mpiWorld, args)
-        if mpiWorld.isMaster():
-            write_time_log_file(time_elapsed, best_acc, file_name=RAN_TIME_NAME)
+        # # Random Search 
+        # time_elapsed, best_acc = ran_search(mpiWorld, args)
+        # if mpiWorld.isMaster():
+        #     write_time_log_file(time_elapsed, best_acc, file_name=RAN_TIME_NAME)
 
         # Evoluation Search 
         time_elapsed, best_acc = evo_search(mpiWorld, args)

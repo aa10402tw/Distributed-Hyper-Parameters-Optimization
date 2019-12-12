@@ -12,10 +12,9 @@ from hyperparams import *
 
 def get_unevaluated_population(population, resultDict):
     unevaluated_population = []
-    for hyperparams in population:
-        key = hyperparams
-        if key not in resultDict:
-            unevaluated_population.append(hyperparams)
+    for hps in population:
+        if hps not in resultDict:
+            unevaluated_population.append(hps)
     return unevaluated_population
 
 def make_child(population, n_child):
