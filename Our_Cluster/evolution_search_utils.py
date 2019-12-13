@@ -18,14 +18,17 @@ def get_unevaluated_population(population, resultDict):
             unevaluated_population.append(hps)
     return unevaluated_population
 
-def make_child(population, n_child):
+def make_child(population, resultDict, n_child):
     population = list(set(population))
-    child = []
-    new_pop = population + child
+    new_pop = population + []
     while(len(new_pop) - len(population) < n_child):
         #child += crossover(population)
-        child += mutation(population)
-        new_pop = new_pop + child
+        child = mutation(population)
+        valid_child = []
+        for hps in child:
+            if hps not in resultDict:
+                valid_child.append(hps)
+        new_pop = new_pop + valid_child
         new_pop = list(set(new_pop))
     child = list(set(new_pop)-set(population))
     return random.sample(child, n_child)
@@ -54,10 +57,10 @@ def mutation(population, prob_mutation=0.2):
         for i, rv in enumerate(hparams.rvs):
             if random.uniform(0, 1) <= prob_mutation:
                 if isinstance(rv, CRV):
-                    #mean = rv.value
-                    mean = np.mean([h.rvs[i].value for h in population[:3]])
+                    mean = rv.value
+                    #mean = np.mean([h.rvs[i].value for h in population[:3]])
                     std = np.std([h.rvs[i].value for h in population])
-                    std = max(0.001, math.sqrt(std))
+                    std = max(0.01, math.sqrt(std))
                     #std = 0.5
                     rv_new = rv.copy()
                     rv_new.value = np.random.normal(mean, std, 1).clip(

@@ -468,46 +468,47 @@ if __name__ == "__main__":
         if mpiWorld.isMaster():
             write_time_log_file(time_elapsed, best_acc, file_name=EVO_ACC_NAME)
 
-    names = ['Grid', 'Random', 'Evoluation']
-    positions = [0, 1, 2]
+    if mpiWorld.isMaster():
+        names = ['Grid', 'Random', 'Evoluation']
+        positions = [0, 1, 2]
 
-    grid_acc_mean, grid_acc_std = read_txt(GRID_ACC_NAME)[1]
-    ran_acc_mean, ran_acc_std = read_txt(RAN_ACC_NAME)[1]
-    evo_acc_mean, evo_acc_std = read_txt(EVO_ACC_NAME)[1]
+        grid_acc_mean, grid_acc_std = read_txt(GRID_ACC_NAME)[1]
+        ran_acc_mean, ran_acc_std = read_txt(RAN_ACC_NAME)[1]
+        evo_acc_mean, evo_acc_std = read_txt(EVO_ACC_NAME)[1]
 
-    acc_means = [grid_acc_mean, ran_acc_mean, evo_acc_mean]
-    acc_stds  = [grid_acc_std, ran_acc_std, evo_acc_std]
+        acc_means = [grid_acc_mean, ran_acc_mean, evo_acc_mean]
+        acc_stds  = [grid_acc_std, ran_acc_std, evo_acc_std]
 
-    grid_time_mean, grid_time_std = read_txt(GRID_ACC_NAME)[0]
-    ran_time_mean, ran_time_std = read_txt(RAN_ACC_NAME)[0]
-    evo_time_mean, evo_time_std = read_txt(EVO_ACC_NAME)[0]
+        grid_time_mean, grid_time_std = read_txt(GRID_ACC_NAME)[0]
+        ran_time_mean, ran_time_std = read_txt(RAN_ACC_NAME)[0]
+        evo_time_mean, evo_time_std = read_txt(EVO_ACC_NAME)[0]
 
-    time_means = [grid_time_mean, ran_time_mean, evo_time_mean]
-    time_stds  = [grid_time_std, ran_time_std, evo_time_std]
+        time_means = [grid_time_mean, ran_time_mean, evo_time_mean]
+        time_stds  = [grid_time_std, ran_time_std, evo_time_std]
 
 
-    title = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
-        "Accuracy", names[0], names[1], names[2])
-    row_1 = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
-        "Mean", "%.2f"%acc_means[0], "%.2f"%acc_means[1], "%.2f"%acc_means[2])
-    row_2 = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
-        "Std", "%.2f"%acc_stds[0], "%.2f"%acc_stds[1], "%.2f"%acc_stds[2])
+        title = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
+            "Accuracy", names[0], names[1], names[2])
+        row_1 = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
+            "Mean", "%.2f"%acc_means[0], "%.2f"%acc_means[1], "%.2f"%acc_means[2])
+        row_2 = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
+            "Std", "%.2f"%acc_stds[0], "%.2f"%acc_stds[1], "%.2f"%acc_stds[2])
 
-    print("="*len(title))
-    print(title)
-    print("="*len(title))
-    print(row_1)
-    print("-"*len(title))
-    print(row_2)
-    print("="*len(title))
-    print()
+        print("="*len(title))
+        print(title)
+        print("="*len(title))
+        print(row_1)
+        print("-"*len(title))
+        print(row_2)
+        print("="*len(title))
+        print()
 
-    os.remove(GRID_ACC_NAME)
-    os.remove(RAN_ACC_NAME)
-    os.remove(EVO_ACC_NAME) 
+        os.remove(GRID_ACC_NAME)
+        os.remove(RAN_ACC_NAME)
+        os.remove(EVO_ACC_NAME) 
 
-    print(target_lr, target_dr, target_mmt)
-    print("Evo Win by", evo_acc_mean-ran_acc_mean)
+        print(target_lr, target_dr, target_mmt)
+        print("Evo Win by", evo_acc_mean-ran_acc_mean)
 
 
         

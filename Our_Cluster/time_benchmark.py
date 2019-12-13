@@ -126,8 +126,12 @@ def grid_search(mpiWorld, args):
         print("="*(len(title)))
         print(title)
         print("="*(len(title)))
-    allIdx = [i for i in range(len(gridSearch))]
-    random.shuffle(allIdx)
+    if mpiWorld.isMaster():
+        allIdx = [i for i in range(len(gridSearch))]
+        random.shuffle(allIdx)
+    else:
+        allIdx = None
+    allIdx = mpiWorld.bcast(allIdx, root=mpiWorld.MASTER_RANK)
     idxes = getIdxes(mpiWorld, allIdx[:args.n_search])
     mpiWorld.comm.barrier()
 
@@ -346,7 +350,7 @@ def generation(mpiWorld, pop_start, resultDict, pbars, args):
         pop_dict['start'] = pop_start
         population_size = len(pop_start)
         # Make Child (Crossover & Mutation)
-        pop_child = make_child(pop_start, population_size)
+        pop_child = make_child(pop_start, resultDict, population_size)
         pop_dict['child'] = pop_child
         population = pop_start + pop_child
         # Get unevaluated population
