@@ -106,7 +106,7 @@ def grid_search(mpiWorld, args):
     lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
     dr  = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME).to_DRV(args.grid_size)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME).to_DRV(args.grid_size)
-    bs_choices =[2**i for i in range(7, 7+1)]
+    bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
 
     hparams = HyperParams([lr, dr, mmt, bs])
@@ -207,7 +207,7 @@ def ran_search(mpiWorld, args):
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
     dr  = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
-    bs_choices =[2**i for i in range(7, 7+1)]
+    bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
 
     hparams = HyperParams([lr, dr, mmt, bs])
@@ -378,7 +378,7 @@ def evo_search(mpiWorld, args):
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
     dr  = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
-    bs_choices =[2**i for i in range(7, 7+1)]
+    bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
     hparams = HyperParams([lr, dr, mmt, bs])
     
@@ -470,6 +470,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--DEBUG",  default=False)
     parser.add_argument("--TIME_LIMIT", default=1200, type=int)
+    parser.add_argument("--bs_choice_low",  default=7, type=int)
+    parser.add_argument("--bs_choice_high",  default=7, type=int) 
     parser.add_argument("--n_comparsion",  default=10, type=int)
     parser.add_argument("--criteria",  default=95, type=float)
     parser.add_argument("--grid_size",  default=10, type=int)

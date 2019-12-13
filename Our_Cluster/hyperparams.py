@@ -117,7 +117,7 @@ class HyperParams:
         self.rvs[key] = value
 
     def __hash__(self):
-        return hash( self.__repr__() )
+        return hash( self.__str__() )
 
     def __eq__(self, other):
         if not self.__class__ == other.__class__:

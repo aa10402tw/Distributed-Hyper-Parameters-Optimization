@@ -28,6 +28,10 @@ from mnist_utils import *
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 DETAIL_LOG = False
 
+target_lr = random.random()
+target_dr = random.random()
+target_mmt = random.random()
+
 def train_mnist_(hparams, device=None, pbars=None, DEBUG=False):
     # Set up Hyper-parameters
     bs = bs_default 
@@ -52,28 +56,9 @@ def train_mnist_(hparams, device=None, pbars=None, DEBUG=False):
         pbar_train = None
         pbar_test = None
 
-    # Reproducibitity
-    torch.manual_seed(0)
-    torch.cuda.manual_seed_all(0)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-     # Init Network
-    net = Net(dropout_rate=dr)
-    net.to(device)
-
-    # Data Loader
-    train_loader = get_train_loader(bs)
-    val_loader = get_val_loader(bs)
-
-    # Hyper-Parameters
-    optimizer = optim.SGD(net.parameters(), lr=lr, momentum=mmt)
-    criterion = nn.CrossEntropyLoss()
-    train_acc = train(net, train_loader, optimizer, criterion, 
-        device, pbar_train, DEBUG=DEBUG)
-    test_acc = test(net, val_loader, criterion, 
-        device, pbar_test, DEBUG=DEBUG)
-
+    train_acc = 0
+    loss = (lr-target_lr)**2 + (dr-target_dr)**4 + (mmt-target_mmt)**2
+    test_acc  = 100 - loss * 100
     return train_acc, test_acc
 
 def write_time_log_file(time, acc, file_name="result/acc_evoluation_search.txt"):
@@ -111,23 +96,23 @@ def grid_search(mpiWorld, args):
 
     hparams = HyperParams([lr, dr, mmt, bs])
     gridSearch =  GridSearch(hparams)
-    if mpiWorld.isMaster():
-        if DETAIL_LOG:
-            print(gridSearch)
-        else:
-            print("[Grid Search]")
+    # if mpiWorld.isMaster():
+    #     if DETAIL_LOG:
+    #         print(gridSearch)
+    #     else:
+    #         print("[Grid Search]")
     resultDict = {}
     pbars = {"search":None, "train":None, "test":None}
 
-    # Print Table
-    if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "dr", "mmt", "bs", "acc")
-        print("="*(len(title)))
-        print(title)
-        print("="*(len(title)))
+    # # Print Table
+    # if DETAIL_LOG and mpiWorld.isMaster():
+    #     title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+    #         "rank", "cnt", "lr", "dr", "mmt", "bs", "acc")
+    #     print("="*(len(title)))
+    #     print(title)
+    #     print("="*(len(title)))
     allIdx = [i for i in range(len(gridSearch))]
-    random.shuffle(allIdx)
+    #random.shuffle(allIdx)
     idxes = getIdxes(mpiWorld, allIdx[:args.n_search])
     mpiWorld.comm.barrier()
     # === Start Search === #
@@ -151,22 +136,22 @@ def grid_search(mpiWorld, args):
             log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
                     mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%dr, "%.4f"%mmt, bs, "%.2f"%test_acc)
             logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
-            if mpiWorld.isMaster():
-                for log in logs:
-                    print(log)
-        if mpiWorld.isMaster():
-            if get_best_acc(resultDict) > best_acc:
-                best_acc = get_best_acc(resultDict)
-                print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
-                    best_acc, len(resultDict), time.time()-start))
-    if DETAIL_LOG and mpiWorld.isMaster():
-        print("="*(len(title)) + "\n")
+            # if mpiWorld.isMaster():
+            #     for log in logs:
+            #         print(log)
+        # if mpiWorld.isMaster():
+        #     if get_best_acc(resultDict) > best_acc:
+        #         best_acc = get_best_acc(resultDict)
+        #         print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+        #             best_acc, len(resultDict), time.time()-start))
+    # if DETAIL_LOG and mpiWorld.isMaster():
+    #     print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
     end = time.time()
     time_elapsed = end-start
-    if mpiWorld.isMaster():
-        print("\tTime Elapsed:{:.2f}, Best Acc:{:.2f}, #hps Eval:{}".format(
-            end-start, get_best_acc(resultDict), len(resultDict)))
+    # if mpiWorld.isMaster():
+    #     print("\tTime Elapsed:{:.2f}, Best Acc:{:.2f}, #hps Eval:{}".format(
+    #         end-start, get_best_acc(resultDict), len(resultDict)))
     closePbars(pbars)
     return time_elapsed, get_best_acc(resultDict)
 
@@ -197,23 +182,23 @@ def ran_search(mpiWorld, args):
 
     hparams = HyperParams([lr, dr, mmt, bs])
     randomSearch = RandomSearch(hparams)
-    if mpiWorld.isMaster():
-        if DETAIL_LOG:
-            print(randomSearch)
-        else:
-            print("[Random Search]")
+    # if mpiWorld.isMaster():
+    #     if DETAIL_LOG:
+    #         print(randomSearch)
+    #     else:
+    #         print("[Random Search]")
         
     resultDict = {}
     result_log = []
     pbars = {"search":None, "train":None, "test":None}
 
-    # Print Table
-    if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "dr", "mmt", "bs", "acc")
-        print("="*(len(title)))
-        print(title)
-        print("="*(len(title)))
+    # # Print Table
+    # if DETAIL_LOG and mpiWorld.isMaster():
+    #     title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+    #         "rank", "cnt", "lr", "dr", "mmt", "bs", "acc")
+    #     print("="*(len(title)))
+    #     print(title)
+    #     print("="*(len(title)))
 
     num_search_local = get_num_search_local(mpiWorld, args.n_search)
     mpiWorld.comm.barrier()
@@ -240,22 +225,22 @@ def ran_search(mpiWorld, args):
             log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
                     mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%dr, "%.4f"%mmt, bs, "%.2f"%test_acc)
             logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
-            if mpiWorld.isMaster():
-                for log in logs:
-                    print(log)
+            # if mpiWorld.isMaster():
+            #     for log in logs:
+            #         print(log)
         if mpiWorld.isMaster():
             if get_best_acc(resultDict) > best_acc:
                 best_acc = get_best_acc(resultDict)
-                print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
-                    best_acc, len(resultDict), time.time()-start))
-    if DETAIL_LOG and mpiWorld.isMaster():
-        print("="*(len(title)) + "\n")
+                # print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                #     best_acc, len(resultDict), time.time()-start))
+    # if DETAIL_LOG and mpiWorld.isMaster():
+    #     print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
     end = time.time()
     time_elapsed = end-start
-    if mpiWorld.isMaster():
-        print("\tTime Elapsed:{:.2f}, Best Acc:{:.2f}, #hps Eval:{}".format(
-            end-start, get_best_acc(resultDict), len(resultDict)))
+    # if mpiWorld.isMaster():
+    #     print("\tTime Elapsed:{:.2f}, Best Acc:{:.2f}, #hps Eval:{}".format(
+    #         end-start, get_best_acc(resultDict), len(resultDict)))
     closePbars(pbars)
     return time_elapsed, get_best_acc(resultDict)
 
@@ -298,9 +283,9 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
     mpiWorld.comm.barrier()
     if DETAIL_LOG:
         logs_gather = mpiWorld.comm.gather(logs, root=mpiWorld.MASTER_RANK)
-        if mpiWorld.isMaster():
-            for logs in flatten(logs_gather):
-                print(logs)
+        # if mpiWorld.isMaster():
+        #     for logs in flatten(logs_gather):
+        #         print(logs)
     population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
     fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
     return flatten(population_gather), flatten(fitness_gather)
@@ -352,30 +337,30 @@ def evo_search(mpiWorld, args):
     num_generation  = args.n_gen
     population_size = args.pop_size
     population = [hparams.copy().initValue() for i in range(population_size)]
-    if mpiWorld.isMaster(): 
-        if DETAIL_LOG:
-            print(get_evo_name(hparams, args.pop_size, args.n_gen))
-        else:
-            print("[Evo Search]")
+    # if mpiWorld.isMaster(): 
+    #     if DETAIL_LOG:
+    #         print(get_evo_name(hparams, args.pop_size, args.n_gen))
+    #     else:
+    #         print("[Evo Search]")
     pbars = {"search":None, "train":None, "test":None}
-    # Print Table   
-    if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "dr", "mmt", "bs", "acc")
-        print("="*(len(title)))
-        print(title)
-        print("="*(len(title)))
+    # # Print Table   
+    # if DETAIL_LOG and mpiWorld.isMaster():
+    #     title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+    #         "rank", "cnt", "lr", "dr", "mmt", "bs", "acc")
+    #     print("="*(len(title)))
+    #     print(title)
+    #     print("="*(len(title)))
     # === Start Search === #
     resultDict = {}
     pop_dicts = []
     best_acc = 0.0
     mpiWorld.comm.Barrier()
     for i in range(0, num_generation+1):
-        if DETAIL_LOG and mpiWorld.isMaster():
-            gen_text = "(Generation : {})".format(i)
-            gen_info = " "*int(len(title)/2-len(gen_text)/2) + gen_text +  " "*int(len(title)/2-len(gen_text)/2)
-            print(gen_info)
-            print("="*(len(title)))
+        # if DETAIL_LOG and mpiWorld.isMaster():
+        #     gen_text = "(Generation : {})".format(i)
+        #     gen_info = " "*int(len(title)/2-len(gen_text)/2) + gen_text +  " "*int(len(title)/2-len(gen_text)/2)
+        #     print(gen_info)
+        #     print("="*(len(title)))
         if i==0:
             uneval_pop, uneval_fitness = evaluate_popuation(
                 mpiWorld, population, pbars, args.DEBUG)
@@ -392,25 +377,39 @@ def evo_search(mpiWorld, args):
             acc_list = []
             for hps in population:
                 acc_list.append(resultDict[hps])
-            if DETAIL_LOG:
-                print("="*(len(title)))
-                print("Selected Pop:", np.array(sorted(acc_list)[::-1]))
-            elif get_best_acc(resultDict) > best_acc:
-                best_acc = get_best_acc(resultDict)
-                if not DETAIL_LOG:
-                   print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
-                    best_acc, len(resultDict), time.time()-start))
-    if DETAIL_LOG and mpiWorld.isMaster():
-        print("="*(len(title)) + "\n")
+            # if DETAIL_LOG:
+            #     print("="*(len(title)))
+            #     print("Selected Pop:", np.array(sorted(acc_list)[::-1]))
+            # elif get_best_acc(resultDict) > best_acc:
+            #     best_acc = get_best_acc(resultDict)
+                # if not DETAIL_LOG:
+                #    print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
+                #     best_acc, len(resultDict), time.time()-start))
+    # if DETAIL_LOG and mpiWorld.isMaster():
+    #     print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
     end = time.time()
     time_elapsed = end-start
-    if mpiWorld.isMaster():
-        print("\tTime Elapsed:{:.2f}, Best Acc:{:.2f}, #hps Eval:{}".format(
-            end-start, get_best_acc(resultDict), len(resultDict)))
+    # if mpiWorld.isMaster():
+    #     print("\tTime Elapsed:{:.2f}, Best Acc:{:.2f}, #hps Eval:{}".format(
+    #         end-start, get_best_acc(resultDict), len(resultDict)))
     closePbars(pbars)
     return time_elapsed, get_best_acc(resultDict)
-
+def read_txt(file_name):
+    time_list = []
+    acc_list  = []
+    if not os.path.isfile(file_name):
+        return (0, 0), (0, 0)
+    with open(file_name, "r") as f:
+        lines = f.readlines()
+        for i, line in enumerate(lines):
+            if i == 0:
+                continue
+            time = line.split(',')[0]
+            acc  = line.split(',')[1]
+            time_list.append(float(time))
+            acc_list.append(float(acc))
+    return (np.mean(time_list), np.std(time_list)), (np.mean(acc_list), np.std(acc_list))
 if __name__ == "__main__":
     # === Init MPI World === #
     mpiWorld = initMPI()
@@ -429,9 +428,9 @@ if __name__ == "__main__":
     parser.add_argument("--n_comparsion", default=10, type=int)
     parser.add_argument("--bs_choice_low",  default=7, type=int)
     parser.add_argument("--bs_choice_high",  default=7, type=int)
-    parser.add_argument("--grid_size", default=4, type=int)
-    parser.add_argument("--n_search", default=64, type=int)
-    parser.add_argument("--n_gen", default=16-1, type=int)
+    parser.add_argument("--grid_size", default=10, type=int)
+    parser.add_argument("--n_search", default=100, type=int)
+    parser.add_argument("--n_gen", default=25-1, type=int)
     parser.add_argument("--pop_size", default=4, type=int)
     args = parser.parse_args()
     args.DEBUG = str2bool(args.DEBUG)
@@ -468,6 +467,49 @@ if __name__ == "__main__":
         time_elapsed, best_acc = evo_search(mpiWorld, args)
         if mpiWorld.isMaster():
             write_time_log_file(time_elapsed, best_acc, file_name=EVO_ACC_NAME)
+
+    names = ['Grid', 'Random', 'Evoluation']
+    positions = [0, 1, 2]
+
+    grid_acc_mean, grid_acc_std = read_txt(GRID_ACC_NAME)[1]
+    ran_acc_mean, ran_acc_std = read_txt(RAN_ACC_NAME)[1]
+    evo_acc_mean, evo_acc_std = read_txt(EVO_ACC_NAME)[1]
+
+    acc_means = [grid_acc_mean, ran_acc_mean, evo_acc_mean]
+    acc_stds  = [grid_acc_std, ran_acc_std, evo_acc_std]
+
+    grid_time_mean, grid_time_std = read_txt(GRID_ACC_NAME)[0]
+    ran_time_mean, ran_time_std = read_txt(RAN_ACC_NAME)[0]
+    evo_time_mean, evo_time_std = read_txt(EVO_ACC_NAME)[0]
+
+    time_means = [grid_time_mean, ran_time_mean, evo_time_mean]
+    time_stds  = [grid_time_std, ran_time_std, evo_time_std]
+
+
+    title = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
+        "Accuracy", names[0], names[1], names[2])
+    row_1 = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
+        "Mean", "%.2f"%acc_means[0], "%.2f"%acc_means[1], "%.2f"%acc_means[2])
+    row_2 = "|{:^20}|{:^20}|{:^20}|{:^20}|".format(
+        "Std", "%.2f"%acc_stds[0], "%.2f"%acc_stds[1], "%.2f"%acc_stds[2])
+
+    print("="*len(title))
+    print(title)
+    print("="*len(title))
+    print(row_1)
+    print("-"*len(title))
+    print(row_2)
+    print("="*len(title))
+    print()
+
+    os.remove(GRID_ACC_NAME)
+    os.remove(RAN_ACC_NAME)
+    os.remove(EVO_ACC_NAME) 
+
+    print(target_lr, target_dr, target_mmt)
+    print("Evo Win by", evo_acc_mean-ran_acc_mean)
+
+
         
         
         

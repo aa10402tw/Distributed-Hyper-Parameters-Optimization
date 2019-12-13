@@ -6,6 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from mnist_utils import *
 import copy
+import math
 
 from hyperparams import *
 
@@ -22,7 +23,7 @@ def make_child(population, n_child):
     child = []
     new_pop = population + child
     while(len(new_pop) - len(population) < n_child):
-        # child += crossover(population)
+        #child += crossover(population)
         child += mutation(population)
         new_pop = new_pop + child
         new_pop = list(set(new_pop))
@@ -53,8 +54,11 @@ def mutation(population, prob_mutation=0.2):
         for i, rv in enumerate(hparams.rvs):
             if random.uniform(0, 1) <= prob_mutation:
                 if isinstance(rv, CRV):
-                    mean = rv.value
-                    std = np.std( [h.rvs[i].value for h in population] )
+                    #mean = rv.value
+                    mean = np.mean([h.rvs[i].value for h in population[:3]])
+                    std = np.std([h.rvs[i].value for h in population])
+                    std = max(0.001, math.sqrt(std))
+                    #std = 0.5
                     rv_new = rv.copy()
                     rv_new.value = np.random.normal(mean, std, 1).clip(
                         rv.low, rv.high).item()

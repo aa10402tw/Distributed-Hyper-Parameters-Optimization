@@ -11,11 +11,12 @@
 
 # Comparsion Between Search Methods
 ### Accuracy (Same number of hyper-parameters evaluated)
-	mpiexec.mpich -hostfile hostfile_3 python3 acc_benchmark.py --n_comparsion=1
+	mpiexec.mpich -hostfile hostfile_3 python3 acc_benchmark.py --n_comparsion=1 --grid_size=5 --n_search=90 --pop_size=6 --n_gen=14
 ### Termination Time (Reach given criteria)
-	mpiexec.mpich -hostfile hostfile_3 python3 time_benchmark.py --TIME_LIMIT=1200 --n_comparsion=1 
+	mpiexec.mpich -hostfile hostfile_3 python3 time_benchmark.py --TIME_LIMIT=1200 --n_comparsion=1 --grid_size=10 --n_search=999 --pop_size=6 --n_gen=165
 ### See the result 
-	python3 result/vis_result.py
+	cd result/
+	python3 vis_result.py
 
 
 ## Comparsion Between Different Number of Nodes
