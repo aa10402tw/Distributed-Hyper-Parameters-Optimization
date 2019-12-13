@@ -131,7 +131,7 @@ def grid_search(mpiWorld, args):
         random.shuffle(allIdx)
     else:
         allIdx = None
-    allIdx = mpiWorld.bcast(allIdx, root=mpiWorld.MASTER_RANK)
+    allIdx = mpiWorld.comm.bcast(allIdx, root=mpiWorld.MASTER_RANK)
     idxes = getIdxes(mpiWorld, allIdx[:args.n_search])
     mpiWorld.comm.barrier()
     # === Start Search === #

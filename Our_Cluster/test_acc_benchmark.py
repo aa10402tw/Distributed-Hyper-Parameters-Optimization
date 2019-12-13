@@ -297,7 +297,7 @@ def generation(mpiWorld, pop_start, resultDict, pbars, DEBUG=False):
         pop_dict['start'] = pop_start
         population_size = len(pop_start)
         # Make Child (Crossover & Mutation)
-        pop_child = make_child(pop_start, population_size)
+        pop_child = make_child(pop_start, resultDict, population_size)
         pop_dict['child'] = pop_child
         population = pop_start + pop_child
         # Get unevaluated population
