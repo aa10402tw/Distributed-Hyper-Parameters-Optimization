@@ -23,12 +23,12 @@ from mpi4py import MPI
 from grid_search_utils import *
 from random_search_utils import *
 from evolution_search_utils import *
-from mnist_utils import *
+from cifar10_utils import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 DETAIL_LOG = False
 
-def train_mnist_(hparams, device=None, pbars=None, DEBUG=False):
+def train_cifar10_(args, hparams, device=None, pbars=None):
     # Set up Hyper-parameters
     bs = bs_default 
     mmt = mmt_default
@@ -59,7 +59,7 @@ def train_mnist_(hparams, device=None, pbars=None, DEBUG=False):
     torch.backends.cudnn.benchmark = False
 
      # Init Network
-    net = Net(dropout_rate=dr)
+    net = EfficientNetB0()
     net.to(device)
 
     # Data Loader
@@ -69,14 +69,16 @@ def train_mnist_(hparams, device=None, pbars=None, DEBUG=False):
     # Hyper-Parameters
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=mmt)
     criterion = nn.CrossEntropyLoss()
-    train_acc = train(net, train_loader, optimizer, criterion, 
-        device, pbar_train, DEBUG=DEBUG)
+    for i in range(args.n_epochs):
+        train_acc = train(net, train_loader, optimizer, criterion, 
+            device, pbar_train, DEBUG=args.DEBUG)
     test_acc = test(net, val_loader, criterion, 
-        device, pbar_test, DEBUG=DEBUG)
+        device, pbar_test, DEBUG=args.DEBUG)
 
     return train_acc, test_acc
 
 def write_time_log_file(time, acc, file_name="result/acc_evoluation_search.txt"):
+    check_dir(file_name)
     if os.path.isfile(file_name):
         with open(file_name, "a+") as f:
             f.write("{:.4f},{:.4f}\n".format(time, acc))
@@ -141,8 +143,8 @@ def grid_search(mpiWorld, args):
         hparams = gridSearch[idx]
 
         # Train MNIST
-        train_acc, test_acc = train_mnist_(
-            hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
+        train_acc, test_acc = train_cifar10_(
+            args, hparams, device=device, pbars=pbars)
 
         # Sync Data
         resultDict[hparams] = test_acc
@@ -230,8 +232,8 @@ def ran_search(mpiWorld, args):
         hparams = randomSearch.get()
 
         # Train MNIST
-        train_acc, test_acc = train_mnist_(
-            hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
+        train_acc, test_acc = train_cifar10_(
+            args, hparams, device=device, pbars=pbars)
 
         # Sync Data
         resultDict[hparams] = test_acc
@@ -291,7 +293,8 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
     logs = []
     for i, hparams in enumerate(local_population):
         # Train MNIST
-        train_acc, acc = train_mnist_(hparams, device=device, pbars=pbars, DEBUG=DEBUG)
+        train_acc, acc = train_cifar10_(
+            args, hparams, device=device, pbars=pbarss)
         local_fitness.append(acc)
         if DETAIL_LOG:
             lr, dr, mmt, bs = hparams.getValueTuple()
@@ -433,6 +436,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_comparsion", default=10, type=int)
     parser.add_argument("--bs_choice_low",  default=7, type=int)
     parser.add_argument("--bs_choice_high",  default=7, type=int)
+    parser.add_argument("--n_epochs", default=1, type=int)
     parser.add_argument("--grid_size", default=4, type=int)
     parser.add_argument("--n_search", default=64, type=int)
     parser.add_argument("--n_gen", default=16-1, type=int)

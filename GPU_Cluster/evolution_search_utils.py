@@ -1,29 +1,34 @@
+import os
+import glob
+import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-import random
+from cifar10_utils import *
 import copy
+import math
 
 from hyperparams import *
-from cifar10_utils import *
 
 
 def get_unevaluated_population(population, resultDict):
     unevaluated_population = []
-    for hyperparams in population:
-        key = hyperparams
-        if key not in resultDict:
-            unevaluated_population.append(hyperparams)
+    for hps in population:
+        if hps not in resultDict:
+            unevaluated_population.append(hps)
     return unevaluated_population
 
-def make_child(population, n_child):
+def make_child(population, resultDict, n_child):
     population = list(set(population))
-    child = []
-    new_pop = population + child
+    new_pop = population + []
     while(len(new_pop) - len(population) < n_child):
-        child += crossover(population)
-        child += mutation(population)
-        new_pop = new_pop + child
+        #child += crossover(population)
+        child = mutation(population)
+        valid_child = []
+        for hps in child:
+            if hps not in resultDict:
+                valid_child.append(hps)
+        new_pop = new_pop + valid_child
         new_pop = list(set(new_pop))
     child = list(set(new_pop)-set(population))
     return random.sample(child, n_child)
@@ -53,14 +58,17 @@ def mutation(population, prob_mutation=0.2):
             if random.uniform(0, 1) <= prob_mutation:
                 if isinstance(rv, CRV):
                     mean = rv.value
-                    std = np.std( [h.rvs[i].value for h in population] )
+                    #mean = np.mean([h.rvs[i].value for h in population[:3]])
+                    std = np.std([h.rvs[i].value for h in population])
+                    std = max(0.01, math.sqrt(std))
+                    #std = 0.5
                     rv_new = rv.copy()
                     rv_new.value = np.random.normal(mean, std, 1).clip(
                         rv.low, rv.high).item()
                     new_rvs.append(rv_new)
                 if isinstance(rv, DRV):
                     rv_new = rv.copy()
-                    rv_new.value = random.choices(rv.choices)[0]
+                    rv_new.value = random.sample(rv.choices, 1)[0]
                     new_rvs.append(rv_new)
             else:
                 new_rvs.append(rv.copy())
@@ -103,6 +111,17 @@ def vis_generation(pop_dicts, save_name="es" ,same_limit=True):
         plt.title("Generation : {}".format(gen+1))
     plt.savefig('{}_generation.png'.format(save_name))
 
+
+def get_evo_name(hparams, pop_size, n_gen):
+    s = "=== Evolution Search ===\n"
+    s += "pop_size:{}\n".format(pop_size)
+    s += "num_gen:{}\n".format(n_gen)
+    for rv in hparams:
+        if isinstance(rv, DRV):
+            s += "{}:{}\n".format(rv.name, rv.choices)
+        if isinstance(rv, CRV):
+            s += "{}:[{} ~ {}]\n".format(rv.name, rv.low, rv.high)
+    return s
 
 def test_evolution():
     lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)

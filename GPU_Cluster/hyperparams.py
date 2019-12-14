@@ -1,11 +1,11 @@
 import copy
 import random
 
-
 LEARNING_RATE_NAME = "lr"
 DROPOUT_RATE_NAME  = "dr"
 MOMENTUM_NAME      = "mmt"
 BATCH_SIZE_NAME    = "bs"
+NUM_EPOCHS_NAME    = "ne"
 
 # === Random Variable === #
 class CRV():
@@ -117,7 +117,7 @@ class HyperParams:
         self.rvs[key] = value
 
     def __hash__(self):
-        return hash( self.__repr__() )
+        return hash( self.__str__() )
 
     def __eq__(self, other):
         if not self.__class__ == other.__class__:
@@ -132,13 +132,13 @@ class HyperParams:
     def copy(self):
         return copy.deepcopy(self)
 
-
 def test_hparams():
-    lr = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
-    dr = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
-    bs = DRV(choices=[16, 32, 64, 128, 256], name=BATCH_SIZE_NAME)
-    lr = lr.to_DRV(n_choices=9)
-    hparams = HyperParams([lr, dr, bs])
+    lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME)
+    dr  = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME)
+    mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME)
+    bs  = DRV(choices=[16, 32, 64, 128, 256], name=BATCH_SIZE_NAME)
+    ne  = DRV(choices=[1, 2, 3, 4, 5], name=NUM_EPOCHS_NAME)
+    hparams = HyperParams([lr, dr, mmt, bs, ne])
     print(hparams)
 
 if __name__ == "__main__":

@@ -317,11 +317,7 @@ def vis_search(hyperparams, result=None, save_name=""):
             ax.plot([x, x], [y,y], [z, 0], linestyle=":", c=cmap(z_))
         plt.savefig('{}_3D_vis.png'.format(save_name))
 
-def check_dir(save_path):
-    file_name = os.path.basename(save_path)
-    save_dir = save_path.split(file_name)[0]
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+
 
 def write_log(logs, save_name="result/random"):
     check_dir(save_name)
@@ -344,6 +340,12 @@ def flatten(list_2d):
     for l in list_2d:
         list_1d += l
     return list_1d
+
+def check_dir(save_path):
+    file_name = os.path.basename(save_path)
+    save_dir = save_path.split(file_name)[0]
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
 def write_time_log(time_elapsed, acc, save_name):
     check_dir(save_name)

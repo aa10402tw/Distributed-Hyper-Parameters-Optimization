@@ -334,9 +334,14 @@ def flatten(list_2d):
         list_1d += l
     return list_1d
 
+def check_dir(save_path):
+    file_name = os.path.basename(save_path)
+    save_dir = save_path.split(file_name)[0]
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
 def write_log(logs, save_name="result/random"):
-    if not os.path.exists("result"):
-        os.makedirs("result")
+    check_dir(save_name)
     save_dict = {"log":logs}
     save_name += ".pickle"
     with open(save_name, 'wb') as file:
@@ -348,6 +353,16 @@ def read_log(save_name="result/random"):
     with open(save_name, 'rb') as file:
         save_dict = pickle.load(file)
     return save_dict['log']
+
+def write_time_log(time_elapsed, acc, save_name):
+    check_dir(save_name)
+    if os.path.isfile(save_name):
+        with open(save_name, "a+") as f:
+            f.write("{:.4f},{:.4f}\n".format(time_elapsed, acc))
+    else:
+        with open(save_name, "w+") as f:
+            f.write("{},{}\n".format("time_elapsed", "acc"))
+            f.write("{:.4f},{:.4f}\n".format(time_elapsed, acc))
 
 if __name__ == "__main__":
     net = EfficientNetB0()
