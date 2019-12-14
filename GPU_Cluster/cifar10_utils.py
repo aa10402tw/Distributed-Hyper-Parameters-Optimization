@@ -23,6 +23,7 @@ bs_default = 256
 mmt_default = 0.0
 dr_default = 0.0
 lr_default = 0.1
+gm_default = 1.0
 num_epochs_default = 20
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

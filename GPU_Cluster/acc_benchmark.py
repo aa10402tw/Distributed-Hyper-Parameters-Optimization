@@ -28,10 +28,15 @@ from cifar10_utils import *
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 DETAIL_LOG = False
 
+def adjust_learning_rate(optimizer, decay_rate=.9):
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = param_group['lr'] * decay_rate
+
 def train_cifar10_(args, hparams, device=None, pbars=None):
     # Set up Hyper-parameters
     bs = bs_default 
     mmt = mmt_default
+    gm = gm_default
     lr = lr_default
 
     for rv in hparams:
@@ -39,9 +44,10 @@ def train_cifar10_(args, hparams, device=None, pbars=None):
             lr = rv.value
         elif rv.name == MOMENTUM_NAME:
             mmt = rv.value
+        elif rv.name == GAMMA_NAME:
+            gm = rv.value
         elif rv.name == BATCH_SIZE_NAME:
             bs = rv.value
-    # print(lr, dr, mmt, bs)
     if pbars is not None:
         pbar_train = pbars['train']
         pbar_test = pbars['test']
@@ -69,6 +75,7 @@ def train_cifar10_(args, hparams, device=None, pbars=None):
     for i in range(args.n_epochs):
         train_acc = train(net, train_loader, optimizer, criterion, 
             device, pbar_train, DEBUG=args.DEBUG)
+        adjust_learning_rate(optimizer, decay_rate=gm)
     test_acc = test(net, val_loader, criterion, 
         device, pbar_test, DEBUG=args.DEBUG)
 
@@ -104,10 +111,11 @@ def grid_search(mpiWorld, args):
     # === Init Search Space === #
     lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME).to_DRV(args.grid_size)
+    gm  = CRV(low=0.0, high=1.0, name=GAMMA_NAME).to_DRV(args.grid_size)
     bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
 
-    hparams = HyperParams([lr, mmt, bs])
+    hparams = HyperParams([lr, mmt, gm, bs])
     gridSearch =  GridSearch(hparams)
     if mpiWorld.isMaster():
         if DETAIL_LOG:
@@ -119,8 +127,8 @@ def grid_search(mpiWorld, args):
 
     # Print Table
     if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "mmt", "bs", "acc")
+        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+            "rank", "cnt", "lr", "mmt", "gm", "bs", "acc")
         print("="*(len(title)))
         print(title)
         print("="*(len(title)))
@@ -149,10 +157,10 @@ def grid_search(mpiWorld, args):
         # Log 
         if DETAIL_LOG:
             cnt = len(resultDict) if mpiWorld.isMaster() else ""
-            lr, mmt, bs = hparams.getValueTuple()
+            lr, mmt, gm, bs = hparams.getValueTuple()
 
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                    mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, bs, "%.2f"%test_acc)
+            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+                    mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, "%.4f"%gm, bs, "%.2f"%test_acc)
             logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
             if mpiWorld.isMaster():
                 for log in logs:
@@ -194,10 +202,11 @@ def ran_search(mpiWorld, args):
     c = 1e-4
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
+    gm = CRV(low=0.0+c, high=1.0-c, name=GAMMA_NAME)
     bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
 
-    hparams = HyperParams([lr, mmt, bs])
+    hparams = HyperParams([lr, mmt, gm, bs])
     randomSearch = RandomSearch(hparams)
     if mpiWorld.isMaster():
         if DETAIL_LOG:
@@ -211,8 +220,8 @@ def ran_search(mpiWorld, args):
 
     # Print Table
     if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr",  "mmt", "bs", "acc")
+        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+            "rank", "cnt", "lr",  "mmt", "gm", "bs", "acc")
         print("="*(len(title)))
         print(title)
         print("="*(len(title)))
@@ -238,9 +247,9 @@ def ran_search(mpiWorld, args):
         # Log 
         if DETAIL_LOG:
             cnt = len(resultDict) if mpiWorld.isMaster() else ""
-            lr, mmt, bs = hparams.getValueTuple()
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                    mpiWorld.my_rank, cnt, "%.4f"%lr,  "%.4f"%mmt, bs, "%.2f"%test_acc)
+            lr, mmt, gm, bs = hparams.getValueTuple()
+            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+                    mpiWorld.my_rank, cnt, "%.4f"%lr,  "%.4f"%mmt, "%.4f"%gm, bs, "%.2f"%test_acc)
             logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
             if mpiWorld.isMaster():
                 for log in logs:
@@ -293,10 +302,10 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
             args, hparams, device=device, pbars=pbars)
         local_fitness.append(acc)
         if DETAIL_LOG:
-            lr, mmt, bs = hparams.getValueTuple()
+            lr, mmt, gm, bs = hparams.getValueTuple()
             cnt = i* mpiWorld.world_size + mpiWorld.my_rank
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, bs, "%.2f"%acc)
+            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+                mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, "%.4f"%gm, bs, "%.2f"%acc)
             logs.append(log)
     mpiWorld.comm.barrier()
     if DETAIL_LOG:
@@ -346,9 +355,10 @@ def evo_search(mpiWorld, args):
     c = 1e-4
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
+    gm  = CRV(low=0.0+c, high=1.0-c, name=GAMMA_NAME)
     bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
-    hparams = HyperParams([lr, mmt, bs])
+    hparams = HyperParams([lr, mmt, gm, bs])
     
     # === Init Population === #
     num_generation  = args.n_gen
@@ -362,8 +372,8 @@ def evo_search(mpiWorld, args):
     pbars = {"search":None, "train":None, "test":None}
     # Print Table   
     if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "mmt", "bs", "acc")
+        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+            "rank", "cnt", "lr", "mmt", "gm", "bs", "acc")
         print("="*(len(title)))
         print(title)
         print("="*(len(title)))

@@ -2,8 +2,8 @@ import copy
 import random
 
 LEARNING_RATE_NAME = "lr"
-DROPOUT_RATE_NAME  = "dr"
 MOMENTUM_NAME      = "mmt"
+GAMMA_NAME         = "gm"
 BATCH_SIZE_NAME    = "bs"
 NUM_EPOCHS_NAME    = "ne"
 
