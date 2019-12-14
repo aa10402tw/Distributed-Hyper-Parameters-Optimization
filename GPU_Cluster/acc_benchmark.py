@@ -295,7 +295,7 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
         if DETAIL_LOG:
             lr, mmt, bs = hparams.getValueTuple()
             cnt = i* mpiWorld.world_size + mpiWorld.my_rank
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
+            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
                 mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, bs, "%.2f"%acc)
             logs.append(log)
     mpiWorld.comm.barrier()

@@ -325,7 +325,7 @@ def evaluate_popuation(mpiWorld, population, pbars, args):
             lr, mmt, bs = hparams.getValueTuple()
             cnt = i* mpiWorld.world_size + mpiWorld.my_rank
             log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, bs, "%.2f"%acc)
+                mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, bs, "%.2f"%test_acc)
             logs.append(log)
         # Check Termination Criteria Criteria
         if test_acc >= args.criteria:
