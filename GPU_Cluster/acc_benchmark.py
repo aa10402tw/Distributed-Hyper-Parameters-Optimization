@@ -294,7 +294,7 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
     for i, hparams in enumerate(local_population):
         # Train MNIST
         train_acc, acc = train_cifar10_(
-            args, hparams, device=device, pbars=pbarss)
+            args, hparams, device=device, pbars=pbars)
         local_fitness.append(acc)
         if DETAIL_LOG:
             lr, dr, mmt, bs = hparams.getValueTuple()
