@@ -92,9 +92,6 @@ def getIdxes(mpiWorld, allIdx):
     world_size = mpiWorld.world_size
     my_rank = mpiWorld.my_rank
     total = len(allIdx)
-    if total % world_size != 0:
-        raise Exception("Grid Search Total {} is not divideable by numbers of nodes {}".format(
-            total, world_size))
     start_idx = my_rank * (total/world_size) if my_rank != 0 else 0
     end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
     idxes = allIdx[int(start_idx):int(end_idx)]
@@ -155,9 +152,6 @@ def get_num_search_local(mpiWorld, num_search_global):
     world_size = mpiWorld.world_size
     my_rank = mpiWorld.my_rank
     total = num_search_global
-    if total % world_size != 0:
-        raise Exception("Random Search Total {} is not divideable by numbers of nodes {}".format(
-            total, world_size))
     start_idx = my_rank * (total/world_size) if my_rank != 0 else 0
     end_idx   = (my_rank+1) * (total/world_size) if my_rank != world_size-1 else total
     return int(end_idx) - int(start_idx)
@@ -344,7 +338,8 @@ if __name__ == "__main__":
     # === Argument === #
     parser = ArgumentParser()
     parser.add_argument("--DEBUG", default=False)
-    parser.add_argument("--n_comparsion", default=10, type=int)
+    parser.add_argument("--n_comparsion", default=1, type=int)
+    parser.add_argument("--which_search", default=1, type=int)
     parser.add_argument("--bs_choice_low",  default=7, type=int)
     parser.add_argument("--bs_choice_high",  default=7, type=int)
     parser.add_argument("--grid_size", default=4, type=int)
@@ -358,9 +353,6 @@ if __name__ == "__main__":
     if mpiWorld.isMaster():
         print("\n=== Args ===")
         print("Args:{}\n".format(args))
-    if args.pop_size % mpiWorld.world_size != 0:
-        raise Exception("Evoluation Search Pop_size {} is not divideable by numbers of nodes {}".format(
-            args.pop_size, mpiWorld.world_size))
 
     np.set_printoptions(precision=2)
 
@@ -370,23 +362,18 @@ if __name__ == "__main__":
 
     for i in range(args.n_comparsion):
         if mpiWorld.isMaster():
-            print("~~~ Acc Comparsion {}/{} ~~~".format(i+1, args.n_comparsion))
+            print("~~~ Scablability Comparsion {}/{} ~~~".format(i+1, args.n_comparsion))
 
-        if i == 0:
-            # Grid Search
+        # Grid Search
+        if args.which_search == 1:
             time_elapsed, best_acc = grid_search(mpiWorld, args)
-            if mpiWorld.isMaster():
-                write_time_log_file(time_elapsed, best_acc, file_name=GRID_ACC_NAME)
 
         # Random Search 
-        time_elapsed, best_acc = ran_search(mpiWorld, args)
-        if mpiWorld.isMaster():
-            write_time_log_file(time_elapsed, best_acc, file_name=RAN_ACC_NAME)
-
+        if args.which_search == 2:
+            time_elapsed, best_acc = ran_search(mpiWorld, args)
+            
         # Evoluation Search 
-        time_elapsed, best_acc = evo_search(mpiWorld, args)
-        if mpiWorld.isMaster():
-            write_time_log_file(time_elapsed, best_acc, file_name=EVO_ACC_NAME)
-        
-        
+        if args.which_search == 3:
+            time_elapsed, best_acc = evo_search(mpiWorld, args)
+            
         
