@@ -23,31 +23,28 @@ from mpi4py import MPI
 from grid_search_utils import *
 from random_search_utils import *
 from evolution_search_utils import *
-from cifar10_utils import *
+from mnist_utils import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 DETAIL_LOG = False
 
-def adjust_learning_rate(optimizer, decay_rate=.9):
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = param_group['lr'] * decay_rate
-
-def train_cifar10_(args, hparams, device=None, pbars=None):
+def train_mnist_(hparams, device=None, pbars=None, DEBUG=False):
     # Set up Hyper-parameters
     bs = bs_default 
     mmt = mmt_default
-    gm = gm_default
+    dr = dr_default
     lr = lr_default
 
     for rv in hparams:
         if rv.name == LEARNING_RATE_NAME:
             lr = rv.value
+        elif rv.name == DROPOUT_RATE_NAME:
+            dr = rv.value
         elif rv.name == MOMENTUM_NAME:
             mmt = rv.value
-        elif rv.name == GAMMA_NAME:
-            gm = rv.value
         elif rv.name == BATCH_SIZE_NAME:
             bs = rv.value
+    # print(lr, dr, mmt, bs)
     if pbars is not None:
         pbar_train = pbars['train']
         pbar_test = pbars['test']
@@ -62,7 +59,7 @@ def train_cifar10_(args, hparams, device=None, pbars=None):
     torch.backends.cudnn.benchmark = False
 
      # Init Network
-    net = EfficientNetB0()
+    net = Net(dropout_rate=dr)
     net.to(device)
 
     # Data Loader
@@ -72,17 +69,14 @@ def train_cifar10_(args, hparams, device=None, pbars=None):
     # Hyper-Parameters
     optimizer = optim.SGD(net.parameters(), lr=lr, momentum=mmt)
     criterion = nn.CrossEntropyLoss()
-    for i in range(args.n_epochs):
-        train_acc = train(net, train_loader, optimizer, criterion, 
-            device, pbar_train, DEBUG=args.DEBUG)
-        adjust_learning_rate(optimizer, decay_rate=gm)
+    train_acc = train(net, train_loader, optimizer, criterion, 
+        device, pbar_train, DEBUG=DEBUG)
     test_acc = test(net, val_loader, criterion, 
-        device, pbar_test, DEBUG=args.DEBUG)
+        device, pbar_test, DEBUG=DEBUG)
 
     return train_acc, test_acc
 
 def write_time_log_file(time, acc, file_name="result/acc_evoluation_search.txt"):
-    check_dir(file_name)
     if os.path.isfile(file_name):
         with open(file_name, "a+") as f:
             f.write("{:.4f},{:.4f}\n".format(time, acc))
@@ -110,12 +104,12 @@ def grid_search(mpiWorld, args):
     start = time.time()
     # === Init Search Space === #
     lr  = CRV(low=0.0, high=1.0, name=LEARNING_RATE_NAME).to_DRV(args.grid_size)
+    dr  = CRV(low=0.0, high=1.0, name=DROPOUT_RATE_NAME).to_DRV(args.grid_size)
     mmt = CRV(low=0.0, high=1.0, name=MOMENTUM_NAME).to_DRV(args.grid_size)
-    gm  = CRV(low=0.0, high=1.0, name=GAMMA_NAME).to_DRV(args.grid_size)
     bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
 
-    hparams = HyperParams([lr, mmt, gm, bs])
+    hparams = HyperParams([lr, dr, mmt, bs])
     gridSearch =  GridSearch(hparams)
     if mpiWorld.isMaster():
         if DETAIL_LOG:
@@ -125,13 +119,6 @@ def grid_search(mpiWorld, args):
     resultDict = {}
     pbars = {"search":None, "train":None, "test":None}
 
-    # Print Table
-    if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "mmt", "gm", "bs", "acc")
-        print("="*(len(title)))
-        print(title)
-        print("="*(len(title)))
     if mpiWorld.isMaster():
         allIdx = [i for i in range(len(gridSearch))]
         random.shuffle(allIdx)
@@ -147,10 +134,8 @@ def grid_search(mpiWorld, args):
         hparams = gridSearch[idx]
 
         # Train MNIST
-        train_acc, test_acc = train_cifar10_(
-            args, hparams, device=device, pbars=pbars)
-
-        # Sync Data
+        train_acc, test_acc = train_mnist_(
+            hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
         resultDict[hparams] = test_acc
 
     mpiWorld.comm.barrier()
@@ -182,12 +167,12 @@ def ran_search(mpiWorld, args):
     # === Init Search Space === #
     c = 1e-4
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    dr  = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
-    gm = CRV(low=0.0+c, high=1.0-c, name=GAMMA_NAME)
     bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
 
-    hparams = HyperParams([lr, mmt, gm, bs])
+    hparams = HyperParams([lr, dr, mmt, bs])
     randomSearch = RandomSearch(hparams)
     if mpiWorld.isMaster():
         if DETAIL_LOG:
@@ -198,14 +183,6 @@ def ran_search(mpiWorld, args):
     resultDict = {}
     result_log = []
     pbars = {"search":None, "train":None, "test":None}
-
-    # Print Table
-    if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr",  "mmt", "gm", "bs", "acc")
-        print("="*(len(title)))
-        print(title)
-        print("="*(len(title)))
 
     num_search_local = get_num_search_local(mpiWorld, args.n_search)
     mpiWorld.comm.barrier()
@@ -218,8 +195,10 @@ def ran_search(mpiWorld, args):
         hparams = randomSearch.get()
 
         # Train MNIST
-        train_acc, test_acc = train_cifar10_(
-            args, hparams, device=device, pbars=pbars)
+        train_acc, test_acc = train_mnist_(
+            hparams, device=device, pbars=pbars, DEBUG=args.DEBUG)
+
+        # Sync Data
         resultDict[hparams] = test_acc
     mpiWorld.comm.barrier()
     end = time.time()
@@ -258,21 +237,9 @@ def evaluate_popuation(mpiWorld, population, pbars, DEBUG=False):
     logs = []
     for i, hparams in enumerate(local_population):
         # Train MNIST
-        train_acc, acc = train_cifar10_(
-            args, hparams, device=device, pbars=pbars)
+        train_acc, acc = train_mnist_(hparams, device=device, pbars=pbars, DEBUG=DEBUG)
         local_fitness.append(acc)
-        if DETAIL_LOG:
-            lr, mmt, gm, bs = hparams.getValueTuple()
-            cnt = i* mpiWorld.world_size + mpiWorld.my_rank
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, "%.4f"%gm, bs, "%.2f"%acc)
-            logs.append(log)
     mpiWorld.comm.barrier()
-    if DETAIL_LOG:
-        logs_gather = mpiWorld.comm.gather(logs, root=mpiWorld.MASTER_RANK)
-        if mpiWorld.isMaster():
-            for logs in flatten(logs_gather):
-                print(logs)
     population_gather = mpiWorld.comm.gather(local_population, root=mpiWorld.MASTER_RANK)
     fitness_gather    = mpiWorld.comm.gather(local_fitness, root=mpiWorld.MASTER_RANK)
     return flatten(population_gather), flatten(fitness_gather)
@@ -314,11 +281,11 @@ def evo_search(mpiWorld, args):
     # === Init Search Space === #
     c = 1e-4
     lr  = CRV(low=0.0+c, high=1.0-c, name=LEARNING_RATE_NAME)
+    dr  = CRV(low=0.0+c, high=1.0-c, name=DROPOUT_RATE_NAME)
     mmt = CRV(low=0.0+c, high=1.0-c, name=MOMENTUM_NAME)
-    gm  = CRV(low=0.0+c, high=1.0-c, name=GAMMA_NAME)
     bs_choices =[2**i for i in range(args.bs_choice_low, args.bs_choice_high+1)]
     bs  = DRV(choices=bs_choices, name=BATCH_SIZE_NAME)
-    hparams = HyperParams([lr, mmt, gm, bs])
+    hparams = HyperParams([lr, dr, mmt, bs])
     
     # === Init Population === #
     num_generation  = args.n_gen
@@ -330,24 +297,12 @@ def evo_search(mpiWorld, args):
         else:
             print("[Evo Search]")
     pbars = {"search":None, "train":None, "test":None}
-    # Print Table   
-    if DETAIL_LOG and mpiWorld.isMaster():
-        title = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-            "rank", "cnt", "lr", "mmt", "gm", "bs", "acc")
-        print("="*(len(title)))
-        print(title)
-        print("="*(len(title)))
     # === Start Search === #
     resultDict = {}
     pop_dicts = []
     best_acc = 0.0
     mpiWorld.comm.Barrier()
     for i in range(0, num_generation+1):
-        if DETAIL_LOG and mpiWorld.isMaster():
-            gen_text = "(Generation : {})".format(i)
-            gen_info = " "*int(len(title)/2-len(gen_text)/2) + gen_text +  " "*int(len(title)/2-len(gen_text)/2)
-            print(gen_info)
-            print("="*(len(title)))
         if i==0:
             uneval_pop, uneval_fitness = evaluate_popuation(
                 mpiWorld, population, pbars, args.DEBUG)
@@ -364,16 +319,7 @@ def evo_search(mpiWorld, args):
             acc_list = []
             for hps in population:
                 acc_list.append(resultDict[hps])
-            if DETAIL_LOG:
-                print("="*(len(title)))
-                print("Selected Pop:", np.array(sorted(acc_list)[::-1]))
-            elif get_best_acc(resultDict) > best_acc:
-                best_acc = get_best_acc(resultDict)
-                if not DETAIL_LOG:
-                   print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
-                    best_acc, len(resultDict), time.time()-start))
-    if DETAIL_LOG and mpiWorld.isMaster():
-        print("="*(len(title)) + "\n")
+
     mpiWorld.comm.barrier()
     end = time.time()
     time_elapsed = end-start
@@ -401,7 +347,6 @@ if __name__ == "__main__":
     parser.add_argument("--n_comparsion", default=10, type=int)
     parser.add_argument("--bs_choice_low",  default=7, type=int)
     parser.add_argument("--bs_choice_high",  default=7, type=int)
-    parser.add_argument("--n_epochs", default=1, type=int)
     parser.add_argument("--grid_size", default=4, type=int)
     parser.add_argument("--n_search", default=64, type=int)
     parser.add_argument("--n_gen", default=16-1, type=int)
