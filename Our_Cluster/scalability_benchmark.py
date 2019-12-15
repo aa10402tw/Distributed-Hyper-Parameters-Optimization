@@ -152,26 +152,7 @@ def grid_search(mpiWorld, args):
 
         # Sync Data
         resultDict[hparams] = test_acc
-        resultDict = syncData(resultDict, mpiWorld, blocking=True)
 
-        # Log 
-        if DETAIL_LOG:
-            cnt = len(resultDict) if mpiWorld.isMaster() else ""
-            lr, mmt, gm, bs = hparams.getValueTuple()
-
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                    mpiWorld.my_rank, cnt, "%.4f"%lr, "%.4f"%mmt, "%.4f"%gm, bs, "%.2f"%test_acc)
-            logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
-            if mpiWorld.isMaster():
-                for log in logs:
-                    print(log)
-        if mpiWorld.isMaster():
-            if get_best_acc(resultDict) > best_acc:
-                best_acc = get_best_acc(resultDict)
-                print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
-                    best_acc, len(resultDict), time.time()-start))
-    if DETAIL_LOG and mpiWorld.isMaster():
-        print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
     end = time.time()
     time_elapsed = end-start
@@ -239,28 +220,7 @@ def ran_search(mpiWorld, args):
         # Train MNIST
         train_acc, test_acc = train_cifar10_(
             args, hparams, device=device, pbars=pbars)
-
-        # Sync Data
         resultDict[hparams] = test_acc
-        resultDict = syncData(resultDict, mpiWorld, blocking=True)
-
-        # Log 
-        if DETAIL_LOG:
-            cnt = len(resultDict) if mpiWorld.isMaster() else ""
-            lr, mmt, gm, bs = hparams.getValueTuple()
-            log = "|{:^6}|{:^5}|{:^8}|{:^8}|{:^8}|{:^5}||{:^8}|".format(
-                    mpiWorld.my_rank, cnt, "%.4f"%lr,  "%.4f"%mmt, "%.4f"%gm, bs, "%.2f"%test_acc)
-            logs = mpiWorld.comm.gather(log, root=mpiWorld.MASTER_RANK)
-            if mpiWorld.isMaster():
-                for log in logs:
-                    print(log)
-        # if mpiWorld.isMaster():
-        #     if get_best_acc(resultDict) > best_acc:
-        #         best_acc = get_best_acc(resultDict)
-        #         print("\tCur Best:{:.2f}(#hps:{}, time:{:.2f})".format(
-        #             best_acc, len(resultDict), time.time()-start))
-    if DETAIL_LOG and mpiWorld.isMaster():
-        print("="*(len(title)) + "\n")
     mpiWorld.comm.barrier()
     end = time.time()
     time_elapsed = end-start
