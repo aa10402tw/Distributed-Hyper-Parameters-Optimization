@@ -22,9 +22,10 @@
 	ssh -N -L localhost:8888:localhost:8888 0756079@140.113.215.195 -p 37031
 
 ### Alias
-	alias cuda_mpiexec_1="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/hostfile_1 /home/students/0756079/anaconda3/bin/python"
-	alias cuda_mpiexec_2="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/hostfile_2 /home/students/0756079/anaconda3/bin/python"
-	alias cuda_mpiexec_4="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/hostfile_4 /home/students/0756079/anaconda3/bin/python"
+	alias cuda_mpiexec_1="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/gpu_hostfile_1 /home/students/0756079/anaconda3/bin/python"
+	alias cuda_mpiexec_2="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/gpu_hostfile_2 /home/students/0756079/anaconda3/bin/python"
+	alias cuda_mpiexec_3="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/gpu_hostfile_3 /home/students/0756079/anaconda3/bin/python"
+	alias cuda_mpiexec_4="/home/students/0756079/openmpi/v3.0.0/bin/mpiexec -hostfile hostfiles/gpu_hostfile_4 /home/students/0756079/anaconda3/bin/python"
 # Execute .py file
 
 	cuda_mpiexec_4 cuda_mpi_test.py
