@@ -344,8 +344,6 @@ if __name__ == "__main__":
         print("Args:{}\n".format(args))
 
     for i in range(args.n_comparsion):
-        if mpiWorld.isMaster():
-
         # Grid Search
         if args.which_search == 1:
             time_elapsed, best_acc = grid_search(mpiWorld, args)
