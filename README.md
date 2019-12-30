@@ -4,7 +4,7 @@ This project use **Grid Search**, **Random Search** and **Evoluationary Search**
 ## Algorithms 
 <img src="https://github.com/aa10402tw/Distributed-Hyper-Parameters-Optimization/blob/master/imgs/search.png">
 
-## Comparsion of each algorithm
+## Accuracy
 <img src="https://github.com/aa10402tw/Distributed-Hyper-Parameters-Optimization/blob/master/imgs/mnist_acc.png" width=250> <img 
 src="https://github.com/aa10402tw/Distributed-Hyper-Parameters-Optimization/blob/master/imgs/cifar10_acc.png" width=250>
 
