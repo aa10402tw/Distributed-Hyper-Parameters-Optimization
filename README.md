@@ -1,5 +1,5 @@
 # Distributed Hyper-Parameters Optimization
-This project use Grid Search, Random Search and Evoluationary Search to tackle [hyper-parameters optimization problem](https://en.wikipedia.org/wiki/Hyperparameter_optimization), and use CUDA-Awared MPI (Distributed Computing) to accerlate the process.
+This project use **Grid Search**, **Random Search** and **Evoluationary Search** to tackle [**hyper-parameters optimization problem**](https://en.wikipedia.org/wiki/Hyperparameter_optimization), and use **CUDA-Awared MPI** (Distributed Computing) to accerlate the process.
 
 ## Algorithms 
 <img src="https://github.com/aa10402tw/Distributed-Hyper-Parameters-Optimization/blob/master/imgs/search.png">
